@@ -17,7 +17,7 @@ class MainActivity : Activity() {
         super.onCreate(b)
         val pad = (24 * resources.displayMetrics.density).toInt()
         val info = TextView(this).apply {
-            text = "Чётки в плавающем окне поверх других приложений.\nОкно двигается за верхнюю панель, размер меняется за уголок ◢, кнопка — сворачивает, ✕ закрывает."
+            text = "Чётки на весь экран с полупрозрачным фоном поверх других приложений.\nКнопка ≡ — меню чёток, «—» сворачивает в кружок 📿 (его можно двигать, нажатие разворачивает), ✕ закрывает."
             textSize = 16f
         }
         val show = Button(this).apply { text = "Показать чётки"; setOnClickListener { start() } }
