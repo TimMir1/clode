@@ -38,16 +38,13 @@ class OverlayService : Service() {
                 NotificationChannel("spiders", "Пауки на экране", NotificationManager.IMPORTANCE_LOW)
             )
         }
-
         val openApp = PendingIntent.getActivity(
             this, 0, Intent(this, MainActivity::class.java),
             PendingIntent.FLAG_UPDATE_CURRENT or
                 (if (Build.VERSION.SDK_INT >= 23) PendingIntent.FLAG_IMMUTABLE else 0)
         )
-
         val builder = if (Build.VERSION.SDK_INT >= 26)
             Notification.Builder(this, "spiders") else Notification.Builder(this)
-
         val notification = builder
             .setSmallIcon(android.R.drawable.ic_menu_view)
             .setContentTitle("Пауки ползают по экрану")
@@ -55,7 +52,6 @@ class OverlayService : Service() {
             .setContentIntent(openApp)
             .setOngoing(true)
             .build()
-
         if (Build.VERSION.SDK_INT >= 34) {
             startForeground(1, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE)
         } else {
@@ -65,7 +61,6 @@ class OverlayService : Service() {
 
     private fun showSpiders() {
         wm = getSystemService(WINDOW_SERVICE) as WindowManager
-
         val params = WindowManager.LayoutParams(
             WindowManager.LayoutParams.MATCH_PARENT,
             WindowManager.LayoutParams.MATCH_PARENT,
@@ -94,12 +89,14 @@ class OverlayService : Service() {
             isHorizontalScrollBarEnabled = false
             webViewClient = object : WebViewClient() {
                 override fun onPageFinished(view: WebView, url: String) {
-                    // Make the document itself transparent so only the existing spider artwork remains visible.
                     view.evaluateJavascript(
-                        "(function(){document.documentElement.style.background='transparent';" +
+                        "(function(){" +
+                            "document.documentElement.style.background='transparent';" +
                             "document.body.style.background='transparent';" +
-                            "document.documentElement.style.backgroundColor='transparent';" +
-                            "document.body.style.backgroundColor='transparent';" +
+                            "var im=document.getElementById('im');if(im)im.style.display='none';" +
+                            "var ov=document.getElementById('overlay');if(ov)ov.style.display='none';" +
+                            "var bar=document.querySelector('.bar');if(bar)bar.style.display='none';" +
+                            "var go=document.getElementById('go');if(go)go.click();" +
                             "})();",
                         null
                     )
@@ -107,7 +104,6 @@ class OverlayService : Service() {
             }
             loadUrl("file:///android_asset/index.html")
         }
-
         overlay = webView
         wm.addView(webView, params)
     }
