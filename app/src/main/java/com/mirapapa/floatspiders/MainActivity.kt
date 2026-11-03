@@ -17,29 +17,45 @@ class MainActivity : Activity() {
         super.onCreate(b)
         val pad = (24 * resources.displayMetrics.density).toInt()
         val info = TextView(this).apply {
-            text = "Плавающее окно с пауками.\nОкно двигается за верхнюю панель, размер меняется за уголок ◢, закрывается крестиком."
+            text = "Пауки ползают поверх всех приложений.\nОни не мешают нажимать на экран и пользоваться телефоном. Чтобы остановить пауков, вернись сюда и нажми «Остановить»."
             textSize = 16f
         }
-        val show = Button(this).apply { text = "Показать окно"; setOnClickListener { start() } }
+        val show = Button(this).apply {
+            text = "Запустить пауков"
+            setOnClickListener { start() }
+        }
         val hide = Button(this).apply {
-            text = "Закрыть окно"
-            setOnClickListener { stopService(Intent(this@MainActivity, OverlayService::class.java)) }
+            text = "Остановить"
+            setOnClickListener {
+                stopService(Intent(this@MainActivity, OverlayService::class.java))
+            }
         }
         setContentView(LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(pad, pad * 2, pad, pad)
-            addView(info); addView(show); addView(hide)
+            addView(info)
+            addView(show)
+            addView(hide)
         })
     }
 
     private fun start() {
         if (!Settings.canDrawOverlays(this)) {
-            startActivity(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:$packageName")))
+            startActivity(
+                Intent(
+                    Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                    Uri.parse("package:$packageName")
+                )
+            )
             return
         }
+
         if (Build.VERSION.SDK_INT >= 33 &&
             checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
-        ) requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 1)
+        ) {
+            requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 1)
+        }
+
         startForegroundService(Intent(this, OverlayService::class.java))
         moveTaskToBack(true)
     }
