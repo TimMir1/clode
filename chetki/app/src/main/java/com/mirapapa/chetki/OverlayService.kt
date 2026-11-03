@@ -17,6 +17,8 @@ import android.view.Gravity
 import android.view.MotionEvent
 import android.view.View
 import android.view.WindowManager
+import android.webkit.WebResourceError
+import android.webkit.WebResourceRequest
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.FrameLayout
@@ -86,7 +88,7 @@ class OverlayService : Service() {
             (function(){
               if(!document.getElementById('ovstyle')){
                 var s=document.createElement('style');s.id='ovstyle';
-                s.textContent='html,body{background:transparent!important}body{background-image:none!important}.card:before{display:none!important}';
+                s.textContent='html,body{background:transparent!important}body{background-image:none!important}.card:before{display:none!important}*{backdrop-filter:none!important;-webkit-backdrop-filter:none!important}';
                 document.head.appendChild(s);
               }
               if(!document.body.classList.contains('focus-mode')){
@@ -96,18 +98,31 @@ class OverlayService : Service() {
         """.trimIndent()
         val toggleJs = "(function(){var f=document.getElementById('focus');if(f)f.click();})();"
 
+        var loaded = false
+        var failed = false
+        val status = TextView(this).apply {
+            text = "Загрузка чёток…"; setTextColor(Color.WHITE); textSize = 16f; gravity = Gravity.CENTER
+        }
+
         val wv = WebView(this).apply {
             setBackgroundColor(Color.TRANSPARENT)
             setLayerType(View.LAYER_TYPE_HARDWARE, null)
             webViewClient = object : WebViewClient() {
+                override fun onReceivedError(view: WebView?, request: WebResourceRequest?, error: WebResourceError?) {
+                    if (request?.isForMainFrame == true) {
+                        failed = true; loaded = false
+                        status.text = "Не удалось загрузить чётки"; status.visibility = View.VISIBLE
+                    }
+                }
                 override fun onPageFinished(view: WebView?, url: String?) {
+                    if (!failed) { loaded = true; status.visibility = View.GONE }
                     view?.let { v -> v.postDelayed({ v.evaluateJavascript(prepareJs, null) }, 500) }
                 }
             }
             settings.javaScriptEnabled = true
             settings.domStorageEnabled = true
             settings.mediaPlaybackRequiresUserGesture = false
-            loadUrl("https://timmir1.github.io/chetki2.html")
+            loadUrl("file:///android_asset/chetki2.html")
         }
         web = wv
 
@@ -128,6 +143,7 @@ class OverlayService : Service() {
         }
 
         val r = FrameLayout(this).apply { setBackgroundColor(scrim) }
+        r.addView(status, FrameLayout.LayoutParams(-1, -1))
         r.addView(wv, FrameLayout.LayoutParams(-1, -1).apply { topMargin = sb; bottomMargin = nb })
         r.addView(controls, FrameLayout.LayoutParams(-2, -2, Gravity.TOP or Gravity.END).apply {
             topMargin = sb + dp(8); rightMargin = dp(12)
@@ -139,13 +155,14 @@ class OverlayService : Service() {
         var by = dp(220)
 
         fun collapse() {
-            wv.visibility = View.GONE; controls.visibility = View.GONE; bubble.visibility = View.VISIBLE
+            wv.visibility = View.GONE; controls.visibility = View.GONE; bubble.visibility = View.VISIBLE; status.visibility = View.GONE
             r.setBackgroundColor(Color.TRANSPARENT)
             lp.width = dp(60); lp.height = dp(60); lp.x = bx; lp.y = by
             m.updateViewLayout(r, lp)
         }
         fun expand() {
             bubble.visibility = View.GONE; wv.visibility = View.VISIBLE; controls.visibility = View.VISIBLE
+            if (!loaded) status.visibility = View.VISIBLE
             r.setBackgroundColor(scrim)
             lp.width = WindowManager.LayoutParams.MATCH_PARENT; lp.height = WindowManager.LayoutParams.MATCH_PARENT
             lp.x = 0; lp.y = 0

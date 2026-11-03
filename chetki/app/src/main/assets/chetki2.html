@@ -1,0 +1,250 @@
+<!doctype html>
+<html lang="ru" data-theme="royal">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#070704"><meta name="description" content="Чётки — цифровой тасбих для зикра, салавата и вирдов."><title>Чётки — Royal 2.1</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Cinzel:wght@600;800&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#070704;--bg2:#0e100b;--surface:rgba(18,18,12,.78);--surface2:rgba(27,27,17,.92);--line:rgba(232,196,83,.22);--gold:#e5bb45;--gold2:#ffe7a0;--green:#0d5a40;--green2:#31b889;--text:#fffdf8;--muted:#b9ad91;--faint:#756c58;--danger:#d9554c;--shadow:0 28px 70px rgba(0,0,0,.5);--r:26px;--r2:18px;--sans:Manrope,system-ui,sans-serif;--display:Cinzel,Georgia,serif;--ar:Amiri,"Traditional Arabic",serif}
+html[data-theme=light]{--bg:#f4f0e8;--bg2:#e8eee9;--surface:rgba(255,255,255,.78);--surface2:rgba(249,245,237,.96);--line:rgba(120,91,35,.2);--gold:#9c6c16;--gold2:#704b0b;--green:#216b56;--green2:#278c70;--text:#17130c;--muted:#665d4e;--faint:#948875;--shadow:0 22px 55px rgba(79,62,28,.13)}
+html[data-theme=dark]{--bg:#0b0907;--bg2:#15110c;--surface:rgba(28,21,14,.8);--surface2:rgba(39,29,19,.94);--line:rgba(206,166,79,.2);--gold:#d5a943;--gold2:#f6d88c;--green:#155240;--green2:#2e9d7d;--text:#fffaf1;--muted:#bdaF9d;--faint:#817462}
+*{box-sizing:border-box}html,body{margin:0;min-height:100%;background:var(--bg);color:var(--text);font-family:var(--sans);-webkit-font-smoothing:antialiased}body{background-image:radial-gradient(circle at 50% -15%,rgba(229,187,69,.13),transparent 42%),radial-gradient(circle at 50% 115%,rgba(20,116,80,.12),transparent 38%);overflow-x:hidden}button,input{font:inherit}.app{width:min(720px,100%);margin:auto;padding:22px 18px 34px;min-height:100vh}.glass{background:var(--surface);border:1px solid var(--line);box-shadow:var(--shadow);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px)}
+.top{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:18px}.brand small{display:block;color:var(--gold);font-size:10px;letter-spacing:.24em;text-transform:uppercase;font-weight:800;margin-bottom:4px}.brand h1{margin:0;font-family:var(--display);font-size:clamp(25px,7vw,38px);letter-spacing:.03em}.brand h1 span{font-family:var(--ar);font-weight:400;color:var(--gold2);font-size:1.1em}.actions{display:flex;gap:8px}.icon{width:44px;height:44px;border:1px solid var(--line);border-radius:50%;background:var(--surface2);color:var(--text);display:grid;place-items:center;cursor:pointer;font-size:18px;transition:.2s}.icon:hover{border-color:var(--gold);transform:translateY(-2px)}.icon:active{transform:scale(.94)}
+.tabs{display:flex;gap:5px;padding:5px;border-radius:999px;margin-bottom:13px}.tabs button{flex:1;min-width:0;border:0;background:transparent;color:var(--muted);padding:11px 8px;border-radius:999px;font-weight:800;font-size:12px;cursor:pointer}.tabs button.active{background:linear-gradient(135deg,var(--gold),var(--gold2));color:#161108;box-shadow:0 8px 22px rgba(229,187,69,.18)}
+.chips{display:flex;gap:9px;overflow:auto;padding:2px 2px 12px;scrollbar-width:none}.chips::-webkit-scrollbar{display:none}.chip{flex:0 0 auto;border:1px solid var(--line);background:var(--surface);color:var(--muted);border-radius:16px;padding:10px 14px;text-align:left;cursor:pointer;min-width:112px}.chip.active{border-color:var(--gold);background:rgba(229,187,69,.09);color:var(--text);box-shadow:inset 0 0 0 1px rgba(229,187,69,.16)}.chip .ar{display:block;font:18px var(--ar);color:var(--gold2);direction:rtl}.chip .name{display:block;font-size:12px;font-weight:800;margin-top:2px;white-space:nowrap;max-width:180px;overflow:hidden;text-overflow:ellipsis}
+.card{border-radius:var(--r);padding:25px 18px 20px;text-align:center;position:relative;overflow:hidden}.card:before{content:"";position:absolute;inset:0;background:radial-gradient(circle at 50% 5%,rgba(229,187,69,.08),transparent 45%);pointer-events:none}.badge{display:inline-flex;align-items:center;gap:6px;padding:6px 11px;border:1px solid var(--line);border-radius:999px;color:var(--gold2);font-size:10px;font-weight:800;letter-spacing:.12em;text-transform:uppercase}.arbig{font:clamp(34px,9vw,52px)/1.55 var(--ar);direction:rtl;color:var(--gold2);margin:16px auto 6px;white-space:pre-line;max-width:650px}.arbig.long{font-size:clamp(24px,5.8vw,36px);line-height:1.8;margin-top:12px}.translit{font-size:16px;font-weight:800;margin:0}.translation{font-size:13px;color:var(--muted);line-height:1.55;margin:7px auto 0;max-width:620px}.target{display:flex;justify-content:center;align-items:center;gap:7px;flex-wrap:wrap;margin:18px 0 3px}.target button{border:1px solid var(--line);background:var(--surface2);color:var(--muted);border-radius:999px;padding:7px 13px;font-size:12px;font-weight:800;cursor:pointer}.target button.active{background:var(--green);border-color:var(--green2);color:#effff9}.custom{display:none}.custom.show{display:flex}.custom input{width:76px;border:1px solid var(--line);background:var(--surface2);color:var(--text);border-radius:999px;padding:7px 10px;text-align:center;outline:none}.custom button{padding:7px 11px}
+.counter-wrap{margin:16px auto 8px;position:relative;width:min(390px,82vw);aspect-ratio:1;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent}.orbit{position:absolute;inset:3.5%;border-radius:50%;background:conic-gradient(from -90deg,var(--green2) 0deg,var(--gold) var(--pct,0deg),rgba(229,187,69,.10) var(--pct,0deg),rgba(229,187,69,.10) 360deg);-webkit-mask:radial-gradient(farthest-side,transparent calc(100% - 5px),#000 calc(100% - 4px));mask:radial-gradient(farthest-side,transparent calc(100% - 5px),#000 calc(100% - 4px));filter:drop-shadow(0 0 7px rgba(49,184,137,.14));z-index:0}.orbit:after{content:"";position:absolute;inset:-1px;border-radius:50%;background:conic-gradient(from -90deg,transparent 0deg,rgba(255,231,160,.65) var(--pct,0deg),transparent calc(var(--pct,0deg) + .5deg));-webkit-mask:radial-gradient(farthest-side,transparent calc(100% - 2px),#000 calc(100% - 1px));mask:radial-gradient(farthest-side,transparent calc(100% - 2px),#000 calc(100% - 1px))}.ring{position:absolute;inset:8%;border-radius:50%;border:1px solid rgba(229,187,69,.15);box-shadow:inset 0 0 70px rgba(229,187,69,.025),0 0 80px rgba(0,0,0,.2);z-index:1}.bead{position:absolute;left:50%;top:50%;width:14px;height:14px;margin:-7px;border-radius:50%;background:#1b1911;border:1px solid rgba(229,187,69,.27);box-shadow:0 3px 7px #000;transition:.22s}.bead.filled{background:radial-gradient(circle at 35% 30%,#fff0af,var(--gold) 42%,#79540c);border-color:#ffe9a0;box-shadow:0 0 12px rgba(229,187,69,.48)}.center{position:absolute;inset:22%;border-radius:50%;display:grid;place-items:center;cursor:pointer;user-select:none;-webkit-tap-highlight-color:transparent;touch-action:manipulation;z-index:3}.center:focus-visible{outline:2px solid var(--gold);outline-offset:6px}.count{font-size:clamp(60px,17vw,92px);line-height:1;font-weight:800;letter-spacing:-.06em}.round{font-size:11px;color:var(--muted);margin-top:5px}.timer{font-size:22px;line-height:1;font-weight:800;letter-spacing:.04em;color:var(--gold2);margin-top:12px;font-variant-numeric:tabular-nums}.timer-label{font-size:9px;color:var(--faint);margin-top:5px;text-transform:uppercase;letter-spacing:.14em}.tap{font-size:10px;color:var(--faint);margin-top:8px;text-transform:uppercase;letter-spacing:.13em}.percent{position:absolute;top:4.5%;left:50%;transform:translateX(-50%);z-index:4;font-size:9px;font-weight:800;letter-spacing:.12em;color:var(--muted);pointer-events:none}.center.pulse .count{animation:pulse .22s ease}.ring.complete{animation:complete .65s ease}@keyframes pulse{50%{transform:scale(1.09);color:var(--gold2)}}@keyframes complete{40%{box-shadow:0 0 0 12px rgba(229,187,69,.06),inset 0 0 90px rgba(229,187,69,.1)}100%{box-shadow:inset 0 0 70px rgba(229,187,69,.025),0 0 80px rgba(0,0,0,.2)}}
+.progress{height:6px;border-radius:99px;background:rgba(255,255,255,.07);overflow:hidden;margin:8px 4px 16px}.progress i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--green2),var(--gold));border-radius:inherit;transition:width .25s}.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.stat{padding:11px 7px;border-radius:15px;border:1px solid var(--line);background:rgba(255,255,255,.025)}.stat b{display:block;font-size:18px}.stat span{font-size:9px;color:var(--faint);text-transform:uppercase;letter-spacing:.08em}.controls{display:flex;gap:9px;margin-top:13px}.control{flex:1;padding:12px;border:1px solid var(--line);border-radius:14px;background:var(--surface2);color:var(--text);font-weight:800;font-size:12px;cursor:pointer}.control.primary{background:var(--green);border-color:var(--green2)}.control.danger{color:#ffaaa4}.focusbar{display:none;gap:8px;margin-top:10px}.focusbar.show{display:flex}
+.panel{margin-top:14px;border-radius:var(--r2);padding:17px}.panel-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}.panel h2{font-size:14px;margin:0}.panel small{color:var(--faint)}.history{display:grid;gap:7px}.day{display:grid;grid-template-columns:100px 1fr auto;align-items:center;gap:10px;font-size:11px}.day .bar{height:7px;background:rgba(255,255,255,.06);border-radius:9px;overflow:hidden}.day .bar i{display:block;height:100%;background:var(--gold);border-radius:9px}.empty{color:var(--faint);font-size:12px;text-align:center;padding:8px}.zikr-stats{display:grid;gap:10px}.stat-day{border:1px solid var(--line);border-radius:15px;padding:11px 12px;background:rgba(255,255,255,.025)}.stat-day-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;font-size:11px;font-weight:800}.stat-day-head span{color:var(--faint);font-weight:600}.stat-items{display:grid;gap:6px}.stat-item{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:12px}.stat-item .stat-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--muted)}.stat-item b{font-variant-numeric:tabular-nums;color:var(--gold2)}
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.72);display:none;place-items:center;padding:18px;z-index:50}.modal.show{display:grid}.modal{overflow-y:auto;align-items:center}.dialog{max-height:calc(100dvh - 32px);overflow-y:auto;overscroll-behavior:contain}.dialog .row{min-width:0}.dialog .row>*{min-width:0}.dialog .row select{width:100%;font-size:13px}.dialog .row input{width:72px!important;min-width:62px!important;margin:0}.dialog .row button{font-size:12px;padding:10px 5px}.dialog .row #wirdMore,.dialog .row #wirdCancel,.dialog .row #wirdSave{overflow-wrap:anywhere}.dialog{width:min(430px,100%);border-radius:24px;padding:20px}.dialog h2{margin:0 0 8px}.dialog p{color:var(--muted);font-size:13px;line-height:1.5}.dialog input{width:100%;padding:12px;border:1px solid var(--line);border-radius:13px;background:var(--surface2);color:var(--text);outline:none;margin:7px 0}.dialog .row{display:flex;gap:8px}.dialog button{flex:1;padding:11px;border:1px solid var(--line);border-radius:13px;background:var(--surface2);color:var(--text);font-weight:800;cursor:pointer}.toast{position:fixed;left:50%;bottom:22px;transform:translate(-50%,20px);opacity:0;pointer-events:none;background:#17150e;color:#fff7df;border:1px solid var(--line);padding:10px 15px;border-radius:999px;font-size:12px;font-weight:700;z-index:80;transition:.25s}.toast.show{opacity:1;transform:translate(-50%,0)}
+.focus-mode .app{max-width:650px}.focus-mode .top,.focus-mode .tabs,.focus-mode .chips,.focus-mode .panel,.focus-mode .target,.focus-mode .controls,.focus-mode .translation,.focus-mode .translit,.focus-mode .badge,.focus-mode .percent{display:none}.focus-mode .card{margin-top:18vh;border:0;background:transparent;box-shadow:none}.focus-mode .arbig{font-size:clamp(38px,10vw,60px)}.focus-mode .counter-wrap{width:min(500px,92vw)}
+@media(max-width:480px){.app{padding:15px 12px 25px}.top{margin-bottom:12px}.tabs button{font-size:10.5px;padding:10px 4px}.card{padding:20px 10px 15px}.counter-wrap{width:88vw}.stats{gap:5px}.day{grid-template-columns:82px 1fr auto}.arbig.long{font-size:24px;line-height:1.75}}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.001ms!important;animation-iteration-count:1!important;scroll-behavior:auto!important;transition-duration:.001ms!important}}
+@media(max-width:480px){.modal{padding:8px;align-items:center}.dialog{width:100%;padding:15px;max-height:calc(100dvh - 20px);border-radius:18px}.dialog h2{font-size:24px}.dialog p{font-size:12px}.dialog .row{gap:5px}.dialog .row select{flex:1 1 48%!important}.dialog .row input{flex:0 0 66px!important}.dialog .row button{flex:0 0 34px!important}.dialog>.row:last-child button{flex:1 1 0!important}} 
+html{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+.counter-wrap{aspect-ratio:5/6}
+.has3d .orbit,.has3d .ring,.has3d .percent{display:none}
+.has3d .center{inset:18% 26% 30% 26%}
+#c3d{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:2}
+#hit{position:absolute;inset:0;z-index:6;touch-action:none;cursor:pointer;-webkit-tap-highlight-color:transparent}
+</style>
+<link rel="manifest" href="./chetki-manifest.webmanifest"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Чётки"><link rel="icon" href="./chetki-icon.svg"></head>
+<body>
+<main class="app">
+<header class="top"><div class="brand"><small>цифровой тасбих</small><h1>Чётки <span>ذِكْر</span></h1></div><div class="actions"><button class="icon" id="theme" aria-label="Сменить тему">☼</button><button class="icon" id="focus" aria-label="Режим фокусировки">◉</button></div></header>
+<nav class="tabs glass" aria-label="Разделы"><button class="active" data-cat="zikr">Зикр</button><button data-cat="salawat">Салават</button><button data-cat="asma">Имена</button><button data-cat="wird">Вирды</button><button data-cat="custom">Мои</button></nav>
+<div class="chips" id="chips"></div>
+<section class="card glass" id="card">
+<div class="badge" id="badge">Зикр</div><div class="arbig" id="ar"></div><p class="translit" id="translit"></p><p class="translation" id="translation"></p>
+<div id="wirdManage" style="margin-top:10px"><button class="control" id="editWird" style="display:none;flex:none;padding:9px 14px">✎ Редактировать / удалить вирд</button></div><div class="target" id="targets"><span style="font-size:10px;color:var(--faint);font-weight:800;text-transform:uppercase">цель</span><button data-target="33">33</button><button data-target="99">99</button><button data-target="100">100</button><button data-target="custom">своя</button><span class="custom" id="custom"><input id="customInput" type="number" min="1" max="99999" placeholder="число"><button id="customApply">OK</button></span></div>
+<div class="counter-wrap"><div class="orbit" id="orbit"></div><div class="ring" id="ring"></div><div class="percent" id="percent">0%</div><div class="center" id="tap" role="button" tabindex="0" aria-label="Увеличить счётчик"><div><div class="count" id="count">0</div><div class="round" id="round">1 круг</div><div class="timer" id="timer">00:00</div><div class="timer-label">время</div><div class="tap">нажмите</div></div></div></div>
+<div class="progress"><i id="progress"></i></div>
+<div class="stats"><div class="stat"><b id="today">0</b><span>сегодня</span></div><div class="stat"><b id="streak">0</b><span>дней подряд</span></div><div class="stat"><b id="total">0</b><span>всего</span></div></div>
+<div class="controls"><button class="control primary" id="voice">🎙 Голос</button><button class="control" id="sound">🔊 Звук</button><button class="control" id="undo" aria-label="Отменить последнее нажатие">↶ Назад</button><button class="control danger" id="reset">↺ Сброс</button></div><div class="focusbar" id="focusbar"><button class="control" id="exitFocus">Выйти из Focus</button></div>
+</section>
+<section class="panel glass"><div class="panel-head"><h2>История</h2><small id="historyMeta">последние дни</small></div><div class="history" id="history"></div></section><section class="panel glass"><div class="panel-head"><h2>Статистика зикров</h2><small>по дням</small></div><div class="zikr-stats" id="zikrStats"></div></section>
+</main><div class="modal" id="wirdModal"><div class="dialog glass"><h2>Новый вирд</h2><p>Название и шаги. Каждый шаг — зикр и количество повторений.</p><input id="wirdName" placeholder="Название вирда"><div id="wirdSteps"></div><div class="row" id="wirdEditActions" style="display:none"><button id="wirdDelete" class="control danger">Удалить вирд</button></div><div class="row"><button id="wirdMore">+ Шаг</button><button id="wirdCancel">Отмена</button><button id="wirdSave">Сохранить</button></div></div></div>
+<div class="modal" id="modal"><div class="dialog glass"><h2>Добавить зикр</h2><p>Создай свой текст. Он сохранится только на этом устройстве.</p><input id="newAr" placeholder="Арабский текст (необязательно)" dir="rtl"><input id="newName" placeholder="Название / транслитерация"><input id="newTrans" placeholder="Перевод (необязательно)"><div class="row"><button id="cancel">Отмена</button><button id="add">Добавить</button></div></div></div><div class="toast" id="toast"></div>
+<script>
+'use strict';
+const DATA={
+ zikr:[
+  {id:'subhanallah',ar:'سُبْحَانَ ٱللَّٰهِ',name:'Субханаллах',tr:'Пречист Аллах',target:33},
+  {id:'alhamdulillah',ar:'ٱلْحَمْدُ لِلَّٰهِ',name:'Альхамдулиллях',tr:'Хвала Аллаху',target:33},
+  {id:'allahuakbar',ar:'ٱللَّهُ أَكْبَرُ',name:'Аллаху акбар',tr:'Аллах превыше всего',target:33},
+  {id:'astaghfirullah',ar:'أَسْتَغْفِرُ ٱللَّٰهَ',name:'Астагфируллах',tr:'Прошу прощения у Аллаха',target:100},
+  {id:'lahawla',ar:'لَا حَوْلَ وَلَا قُوَّةَ إِلَّا بِاللَّهِ',name:'Ля хауля ва ля куввата илля биллях',tr:'Нет силы и мощи, кроме как у Аллаха',target:33}
+ ],
+ salawat:[{id:'salawat',ar:'اللَّهُمَّ صَلِّ عَلَىٰ مُحَمَّدٍ وَعَلَىٰ آلِ مُحَمَّدٍ،\nكَمَا صَلَّيْتَ عَلَىٰ إِبْرَاهِيمَ وَعَلَىٰ آلِ إِبْرَاهِيمَ، إِنَّكَ حَمِيدٌ مَجِيدٌ،\nاللَّهُمَّ بَارِكْ عَلَىٰ مُحَمَّدٍ وَعَلَىٰ آلِ مُحَمَّدٍ،\nكَمَا بَارَكْتَ عَلَىٰ إِبْرَاهِيمَ وَعَلَىٰ آلِ إِبْرَاهِيمَ، إِنَّكَ حَمِيدٌ مَجِيدٌ',name:'Салават Ибрахимия',tr:'О Аллах, благослови Мухаммада и семейство Мухаммада, как благословил Ты Ибрахима и семейство Ибрахима, поистине, Ты — Достойный похвалы, Славный! О Аллах, ниспошли благодать на Мухаммада и семейство Мухаммада, как ниспослал Ты благодать на Ибрахима и семейство Ибрахима, поистине, Ты — Достойный похвалы, Славный!',target:33,long:true}],
+ asma:[{id:'allah',ar:'ٱللَّهُ',name:'Аллах',tr:'Аллах',target:99},{id:'arrahman',ar:'ٱلرَّحْمَٰنُ',name:'Ар-Рахман',tr:'Милостивый',target:99},{id:'arraheem',ar:'ٱلرَّحِيمُ',name:'Ар-Рахим',tr:'Милосердный',target:99}],
+ wird:[{id:'wird33',name:'После намаза',tr:'Субханаллах 33 · Альхамдулиллях 33 · Аллаху акбар 34',target:100,chain:['subhanallah','alhamdulillah','allahuakbar']}],
+ custom:[]
+};
+DATA.asma=[{id:'allah',ar:'اللَّهُ',name:'Аллах',tr:'Имя Аллаха',target:99},...["Ar-Rahman","Ar-Rahim","Al-Malik","Al-Quddus","As-Salam","Al-Mu'min","Al-Muhaymin","Al-Aziz","Al-Jabbar","Al-Mutakabbir","Al-Khaliq","Al-Bari","Al-Musawwir","Al-Ghaffar","Al-Qahhar","Al-Wahhab","Ar-Razzaq","Al-Fattah","Al-Alim","Al-Qabid","Al-Basit","Al-Khafid","Ar-Rafi","Al-Muizz","Al-Mudhill","As-Sami","Al-Basir","Al-Hakam","Al-Adl","Al-Latif","Al-Khabir","Al-Halim","Al-Azim","Al-Ghafur","Ash-Shakur","Al-Aliyy","Al-Kabir","Al-Hafiz","Al-Muqit","Al-Hasib","Al-Jalil","Al-Karim","Ar-Raqib","Al-Mujib","Al-Wasi","Al-Hakim","Al-Wadud","Al-Majid","Al-Baith","Ash-Shahid","Al-Haqq","Al-Wakil","Al-Qawiyy","Al-Matin","Al-Waliyy","Al-Hamid","Al-Muhsi","Al-Mubdi","Al-Muid","Al-Muhyi","Al-Mumit","Al-Hayy","Al-Qayyum","Al-Wajid","Al-Majid","Al-Wahid","Al-Ahad","As-Samad","Al-Qadir","Al-Muqtadir","Al-Muqaddim","Al-Muakhkhir","Al-Awwal","Al-Akhir","Az-Zahir","Al-Batin","Al-Wali","Al-Mutaali","Al-Barr","At-Tawwab","Al-Muntaqim","Al-Afuww","Ar-Rauf","Malik-ul-Mulk","Dhul-Jalali-wal-Ikram","Al-Muqsit","Al-Jami","Al-Ghani","Al-Mughni","Al-Mani","Ad-Darr","An-Nafi","An-Nur","Al-Hadi","Al-Badi","Al-Baqi","Al-Warith","Ar-Rashid","As-Sabur"].map((name,i)=>({id:'asma-'+(i+1),ar:["الرَّحْمَنُ","الرَّحِيمُ","الْمَلِكُ","الْقُدُّوسُ","السَّلَامُ","الْمُؤْمِنُ","الْمُهَيْمِنُ","الْعَزِيزُ","الْجَبَّارُ","الْمُتَكَبِّرُ","الْخَالِقُ","الْبَارِئُ","الْمُصَوِّرُ","الْغَفَّارُ","الْقَهَّارُ","الْوَهَّابُ","الرَّزَّاقُ","الْفَتَّاحُ","الْعَلِيمُ","الْقَابِضُ","الْبَاسِطُ","الْخَافِضُ","الرَّافِعُ","الْمُعِزُّ","الْمُذِلُّ","السَّمِيعُ","الْبَصِيرُ","الْحَكَمُ","الْعَدْلُ","اللَّطِيفُ","الْخَبِيرُ","الْحَلِيمُ","الْعَظِيمُ","الْغَفُورُ","الشَّكُورُ","الْعَلِيُّ","الْكَبِيرُ","الْحَفِيظُ","الْمُقِيتُ","الْحَسِيبُ","الْجَلِيلُ","الْكَرِيمُ","الرَّقِيبُ","الْمُجِيبُ","الْوَاسِعُ","الْحَكِيمُ","الْوَدُودُ","الْمَجِيدُ","الْبَاعِثُ","الشَّهِيدُ","الْحَقُّ","الْوَكِيلُ","الْقَوِيُّ","الْمَتِينُ","الْوَلِيُّ","الْحَمِيدُ","الْمُحْصِي","الْمُبْدِئُ","الْمُعِيدُ","الْمُحْيِي","الْمُمِيتُ","الْحَيُّ","الْقَيُّومُ","الْوَاجِدُ","الْمَاجِدُ","الْوَاحِدُ","الْأَحَدُ","الصَّمَدُ","الْقَادِرُ","الْمُقْتَدِرُ","الْمُقَدِّمُ","الْمُؤَخِّرُ","الْأَوَّلُ","الْآخِرُ","الظَّاهِرُ","الْبَاطِنُ","الْوَالِي","الْمُتَعَالِي","الْبَرُّ","التَّوَّابُ","الْمُنْتَقِمُ","الْعَفُوُّ","الرَّؤُوفُ","مَالِكُ الْمُلْكِ","ذُو الْجَلَالِ وَالْإِكْرَامِ","الْمُقْسِطُ","الْجَامِعُ","الْغَنِيُّ","الْمُغْنِي","الْمَانِعُ","الضَّارُّ","النَّافِعُ","النُّورُ","الْهَادِي","الْبَدِيعُ","الْبَاقِي","الْوَارِثُ","الرَّشِيدُ","الصَّبُورُ"][i],name:(i+1)+'. '+name,tr:["Милостивый","Милосердный","Царь","Пресвятой","Мирный, Дарующий мир","Дарующий безопасность","Оберегающий","Могущественный","Властный","Превознесённый","Творец","Создатель","Придающий облик","Многопрощающий","Всепокоряющий","Дарующий","Наделяющий уделом","Открывающий","Всезнающий","Сжимающий","Расширяющий","Принижающий","Возвышающий","Дарующий величие","Унижающий","Всеслышащий","Всевидящий","Судья","Справедливый","Проницательный, Добрый","Всеведающий","Кроткий","Великий","Прощающий","Благодарный","Всевышний","Большой, Великий","Хранитель","Поддерживающий","Достаточный для расчёта","Величественный","Щедрый","Наблюдающий","Отвечающий","Всеобъемлющий","Мудрый","Любящий","Славный","Воскрешающий","Свидетель","Истина","Попечитель","Сильный","Крепкий","Покровитель","Достохвальный","Исчисляющий","Начинающий творение","Возвращающий","Оживляющий","Умерщвляющий","Живой","Вседержитель","Находящий","Славный","Единый","Единственный","Самодостаточный","Всемогущий","Всевластный","Выдвигающий вперёд","Отодвигающий назад","Первый","Последний","Явный","Сокровенный","Правитель","Превознесённый","Благодетельный","Принимающий покаяние","Воздающий","Прощающий, Стирающий грехи","Сострадательный","Владыка царства","Обладатель величия и щедрости","Справедливый","Собирающий","Богатый, Ни в чём не нуждающийся","Обогащающий","Удерживающий","Причиняющий вред","Приносящий пользу","Свет","Ведущий прямым путём","Несравненный Создатель","Вечный","Наследующий","Направляющий верно","Терпеливый"][i],target:99}))];
+const KEY='chetki2-state-v1';let state=load();let recognition=null;let listening=false;let restartTimer=null;let timerStart=0;let timerInterval=null;let lastElapsed=0;
+function load(){try{const v=JSON.parse(localStorage.getItem(KEY))||fresh();v.customWirds ||= [];return v}catch(e){return fresh()}}function fresh(){return{cat:'zikr',active:'subhanallah',counts:{},daily:{},dailyItems:{},targets:{},custom:[],sound:true,theme:'royal',wirdStep:0,customWirds:[]}}function save(){try{localStorage.setItem(KEY,JSON.stringify(state))}catch(e){}}function key(){return state.cat==='wird'?state.active+':'+state.wirdStep:state.active}function list(){return state.cat==='custom'?state.custom:state.cat==='wird'?[...DATA.wird,...(state.customWirds||[])]:DATA[state.cat]||[]}function item(){if(state.cat==='wird'){const w=list().find(x=>x.id===state.active)||DATA.wird[0];return findItem(w.chain[state.wirdStep]||w.chain[0])}return findItem(state.active)}function findItem(id){return [...DATA.zikr,...DATA.salawat,...DATA.asma,...state.custom].find(x=>x.id===id)}function target(){if(state.cat==='wird'){const w=list().find(x=>x.id===state.active);return w?.steps?.[state.wirdStep]?.target||(state.wirdStep===2?34:33)}return state.targets[key()]||item()?.target||33}function count(){return state.counts[key()]||0}function todayKey(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}function round(){return Math.floor(count()/33)+1}function toast(s){const t=$('#toast');t.textContent=s;t.classList.add('show');clearTimeout(toast.timer);toast.timer=setTimeout(()=>t.classList.remove('show'),1900)}function $(s){return document.querySelector(s)}function esc(s){return String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]||c))}
+function formatTime(ms){const sec=Math.floor(Math.max(0,ms)/1000),h=Math.floor(sec/3600),m=Math.floor(sec%3600/60),s=sec%60;return (h?String(h).padStart(2,'0')+':':'')+String(m).padStart(2,'0')+':'+String(s).padStart(2,'0')}
+function updateTimer(){if(timerStart)$('#timer').textContent=formatTime(Date.now()-timerStart);else $('#timer').textContent=formatTime(lastElapsed)}
+function startTimer(){if(timerStart)return;timerStart=Date.now();lastElapsed=0;clearInterval(timerInterval);timerInterval=setInterval(updateTimer,250);updateTimer()}
+function stopTimer(){if(!timerStart)return lastElapsed;lastElapsed=Date.now()-timerStart;timerStart=0;clearInterval(timerInterval);timerInterval=null;updateTimer();return lastElapsed}
+function resetTimer(){timerStart=0;lastElapsed=0;clearInterval(timerInterval);timerInterval=null;updateTimer()}
+function render(){document.documentElement.dataset.theme=state.theme;document.querySelectorAll('.tabs button').forEach(b=>b.classList.toggle('active',b.dataset.cat===state.cat));const ls=list();$('#chips').innerHTML=ls.map(x=>`<button class="chip ${x.id===state.active?'active':''}" data-id="${esc(x.id)}">${x.ar?`<span class="ar">${esc(x.ar.split('\n')[0])}</span>`:''}<span class="name">${esc(x.name||x.title||x.id)}</span></button>`).join('')+(state.cat==='custom'?'<button class="chip" id="addChip"><span class="ar">＋</span><span class="name">Добавить</span></button>':state.cat==='wird'?'<button class="chip" id="addWird"><span class="ar">＋</span><span class="name">Свой вирд</span></button>':'');document.querySelectorAll('.chip[data-id]').forEach(b=>b.onclick=()=>{resetTimer();state.active=b.dataset.id;state.wirdStep=0;save();render()});$('#addWird')?.addEventListener('click',()=>openWirdEditor());$('#addChip')?.addEventListener('click',()=>$('#modal').classList.add('show'));let editWirdButton=$('#editWird');if(editWirdButton)editWirdButton.style.display=state.cat==='wird'&&state.active.startsWith('wird-custom-')?'inline-flex':'none';const x=item();if(!x)return;$('#badge').textContent=state.cat==='wird'?`Вирд · шаг ${state.wirdStep+1}/${list().find(w=>w.id===state.active)?.chain.length||1}`:(state.cat==='zikr'?'Зикр':state.cat==='salawat'?'Салават':state.cat==='asma'?'Имена':'Мои');$('#ar').textContent=x.ar||'';$('#ar').classList.toggle('long',!!x.long);$('#translit').textContent=x.name||'';$('#translation').textContent=x.tr||'';$('#count').textContent=count();$('#round').textContent=`${round()} круг`;document.querySelectorAll('#targets button[data-target]').forEach(b=>b.classList.toggle('active',String(target())===b.dataset.target));const pct=Math.min(1,count()/Math.max(1,target()));$('#progress').style.width=pct*100+'%';$('#percent').textContent=Math.round(pct*100)+'%';$('#orbit').style.setProperty('--pct',(pct*360)+'deg');const c=count();const ring=$('#ring');ring.innerHTML='';const n=33;const filled=c%33;for(let i=0;i<n;i++){const b=document.createElement('i');b.className='bead'+(i<filled?' filled':'');const a=2*Math.PI*i/n-Math.PI/2,r=44;b.style.transform=`translate(calc(-50% + ${Math.cos(a)*r}%),calc(-50% + ${Math.sin(a)*r}%))`;ring.appendChild(b)}window.T3&&T3.set(count());updateTimer();renderStats();renderHistory()}
+function renderStats(){const k=todayKey();const today=state.daily[k]||0;$('#today').textContent=today;$('#total').textContent=Object.values(state.daily).reduce((a,b)=>a+(Number(b)||0),0);let d=new Date(),s=0;for(let i=0;i<3650;i++){const q=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');if((state.daily[q]||0)>0){s++;d.setDate(d.getDate()-1)}else{if(i===0){d.setDate(d.getDate()-1);continue}break}}$('#streak').textContent=s;renderZikrStats()}
+function renderZikrStats(){const root=$('#zikrStats');if(!root)return;const days=[];let d=new Date();for(let i=0;i<7;i++){const q=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');days.push(q);d.setDate(d.getDate()-1)}root.innerHTML=days.map(q=>{const items=state.dailyItems?.[q]||{};const entries=Object.entries(items).filter(([,v])=>Number(v)>0);const total=entries.reduce((a,[,v])=>a+Number(v),0);const [y,m,day]=q.split('-');if(!entries.length)return`<div class="stat-day"><div class="stat-day-head"><b>${day}.${m}.${y.slice(2)}</b><span>нет записей</span></div></div>`;return`<div class="stat-day"><div class="stat-day-head"><b>${day}.${m}.${y.slice(2)}</b><span>${total} повторений</span></div><div class="stat-items">${entries.sort((a,b)=>Number(b[1])-Number(a[1])).map(([id,v])=>{const x=findItem(id);return`<div class="stat-item"><span class="stat-name">${esc(x?.name||id)}</span><b>${Number(v)}</b></div>`}).join('')}</div></div>`}).join('')}function renderHistory(){const days=[];let d=new Date(),max=1;for(let i=0;i<7;i++){const q=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'),v=state.daily[q]||0;days.push([q,v]);max=Math.max(max,v);d.setDate(d.getDate()-1)}$('#history').innerHTML=days.map(([q,v])=>{const [y,m,day]=q.split('-');return`<div class="day"><span>${day}.${m}.${y.slice(2)}</span><div class="bar"><i style="width:${v?Math.max(4,v/max*100):0}%"></i></div><b>${v}</b></div>`}).join('')}
+let lastAction=null;function inc(){if(!timerStart&&count()===0)startTimer();const k=key(),v=(state.counts[k]||0)+1;const previous={counts:{...state.counts},daily:{...state.daily},dailyItems:JSON.parse(JSON.stringify(state.dailyItems||{})),cat:state.cat,active:state.active,wirdStep:state.wirdStep};lastAction=previous;state.counts[k]=v;const day=todayKey();state.daily[day]=(state.daily[day]||0)+1;const trackedItem=item();if(!state.dailyItems)state.dailyItems={};if(!state.dailyItems[day])state.dailyItems[day]={};const trackedId=trackedItem?.id||state.active;state.dailyItems[day][trackedId]=(state.dailyItems[day][trackedId]||0)+1;save();const c=$('#tap');c.classList.remove('pulse');void c.offsetWidth;c.classList.add('pulse');if(navigator.vibrate)try{navigator.vibrate(8)}catch(e){}window.T3&&T3.pulse(v%33===0);if(state.sound)beep(v%33===0?'round':'tick');if(v>=target()){const elapsed=stopTimer();if(state.cat==='wird'){const w=list().find(x=>x.id===state.active);if(w&&state.wirdStep<w.chain.length-1){state.wirdStep++;toast('Шаг завершён · '+formatTime(elapsed));state.counts[key()]=0}else{toast('Вирд завершён · '+formatTime(elapsed));state.counts[k]=0}}else{toast('Цель выполнена · '+formatTime(elapsed));state.counts[k]=0}save();render()}else render()}
+function undo(){if(!lastAction){toast('Нечего отменять');return}Object.assign(state,lastAction);lastAction=null;save();render();toast('Последнее нажатие отменено')}function reset(){lastAction=null;const k=key();state.counts[k]=0;resetTimer();save();render();toast('Счётчик сброшен')}
+let ac;function beep(type){try{if(!ac)ac=new (window.AudioContext||window.webkitAudioContext)();if(ac.state==='suspended')ac.resume();const o=ac.createOscillator(),g=ac.createGain(),t=ac.currentTime;o.type=type==='round'?'triangle':'sine';o.frequency.value=type==='round'?520:220;g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(type==='round'?.18:.08,t+.01);g.gain.exponentialRampToValueAtTime(.0001,t+.14);o.connect(g).connect(ac.destination);o.start(t);o.stop(t+.16)}catch(e){}}
+function voice(){const SR=window.SpeechRecognition||window.webkitSpeechRecognition;if(!SR){toast('Голос не поддерживается этим браузером');return}if(listening){stopVoice();return}startVoice(SR)}function startVoice(SR){clearTimeout(restartTimer);try{recognition=new SR()}catch(e){toast('Не удалось включить микрофон');return}recognition.continuous=true;recognition.interimResults=false;recognition.lang='ru-RU';recognition.maxAlternatives=3;recognition.onstart=()=>{listening=true;$('#voice').textContent='🔴 Слушаю';toast('Голос включён · говорите зикр')};recognition.onresult=e=>{for(let i=e.resultIndex;i<e.results.length;i++){if(!e.results[i].isFinal)continue;const texts=[];for(let a=0;a<e.results[i].length;a++)texts.push(e.results[i][a].transcript.toLowerCase());const t=texts.join(' ');let id=null;if(t.includes('субхан'))id='subhanallah';else if(t.includes('альхам')||t.includes('алхам'))id='alhamdulillah';else if(t.includes('акбар'))id='allahuakbar';else if(t.includes('астаг')||t.includes('астах'))id='astaghfirullah';else if(t.includes('салават')||t.includes('салят'))id='salawat';if(id){if(id==='salawat'){resetTimer();state.cat='salawat';state.active='salawat';state.wirdStep=0}else{resetTimer();state.cat='zikr';state.active=id;state.wirdStep=0}save();render();inc();toast('Услышано · +1')}}};recognition.onerror=e=>{if(e.error==='not-allowed'||e.error==='service-not-allowed'){listening=false;$('#voice').textContent='🎙 Голос';toast('Нет доступа к микрофону');return}if(e.error!=='aborted')scheduleVoiceRestart(SR)};recognition.onend=()=>{if(listening)scheduleVoiceRestart(SR)};try{recognition.start()}catch(e){listening=false;$('#voice').textContent='🎙 Голос';toast('Не удалось включить микрофон')}}function scheduleVoiceRestart(SR){clearTimeout(restartTimer);if(!listening)return;restartTimer=setTimeout(()=>{if(!listening)return;try{recognition.start()}catch(e){try{startVoice(SR)}catch(err){}}},250)}function stopVoice(){listening=false;clearTimeout(restartTimer);try{recognition?.stop()}catch(e){}recognition=null;$('#voice').textContent='🎙 Голос';toast('Голос выключен')}
+document.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>{resetTimer();state.cat=b.dataset.cat;state.wirdStep=0;if(state.cat==='wird')state.active=DATA.wird[0].id;else if(!findItem(state.active)||!list().some(x=>x.id===state.active))state.active=list()[0]?.id;save();render()});$('#tap').onclick=inc;document.querySelector('.counter-wrap').onclick=e=>{if(!e.target.closest('#tap'))inc()};$('#tap').onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();inc()}};function addWirdStep(){const row=document.createElement('div');row.className='row';row.style.marginBottom='8px';const select=document.createElement('select');select.style.cssText='min-width:0;flex:2;background:var(--surface2);color:var(--text);border:1px solid var(--line);border-radius:12px';for(const x of [...DATA.zikr,...DATA.salawat,...DATA.asma,...state.custom]){const o=document.createElement('option');o.value=x.id;o.textContent=x.name;select.appendChild(o)}const num=document.createElement('input');num.type='number';num.min='1';num.max='99999';num.value='33';num.style.cssText='flex:1;min-width:65px;width:75px';const del=document.createElement('button');del.textContent='×';del.style.flex='0 0 40px';del.onclick=()=>row.remove();row.append(select,num,del);$('#wirdSteps').appendChild(row);return row}let editingWirdId=null;function openWirdEditor(id=null){editingWirdId=id;const w=(state.customWirds||[]).find(x=>x.id===id);$('#wirdSteps').replaceChildren();$('#wirdName').value=w?.name||'';if(w?.steps?.length){w.steps.forEach(step=>{const r=addWirdStep();r.querySelector('select').value=step.id;r.querySelector('input').value=step.target})}else addWirdStep();$('#wirdEditActions').style.display=w?'flex':'none';$('#wirdModal').classList.add('show')}$('#wirdDelete').onclick=()=>{if(!editingWirdId||!confirm('Удалить этот вирд?'))return;state.customWirds=state.customWirds.filter(x=>x.id!==editingWirdId);state.active=DATA.wird[0].id;state.wirdStep=0;editingWirdId=null;save();$('#wirdModal').classList.remove('show');render();toast('Вирд удалён')};$('#editWird').onclick=()=>openWirdEditor(state.active);$('#wirdMore').onclick=addWirdStep;$('#wirdCancel').onclick=()=>$('#wirdModal').classList.remove('show');$('#wirdSave').onclick=()=>{const name=$('#wirdName').value.trim();const steps=[...$('#wirdSteps').children].map(r=>({id:r.querySelector('select').value,target:Number(r.querySelector('input').value)}));if(!name||!steps.length||steps.some(x=>!Number.isInteger(x.target)||x.target<1||x.target>99999)){toast('Укажите название и правильные количества');return}const w={id:'wird-custom-'+Date.now(),name,tr:steps.map(x=>findItem(x.id)?.name+' × '+x.target).join(' · '),chain:steps.map(x=>x.id),steps};if(editingWirdId){w.id=editingWirdId;const idx=state.customWirds.findIndex(x=>x.id===editingWirdId);if(idx>=0)state.customWirds[idx]=w}else state.customWirds.push(w);editingWirdId=null;state.cat='wird';state.active=w.id;state.wirdStep=0;save();$('#wirdModal').classList.remove('show');render()};$('#reset').onclick=reset;$('#undo').onclick=undo;$('#voice').onclick=voice;$('#sound').onclick=()=>{state.sound=!state.sound;save();$('#sound').textContent=state.sound?'🔊 Звук':'🔇 Тихо';toast(state.sound?'Звук включён':'Звук выключен')};document.querySelectorAll('#targets button[data-target]').forEach(b=>b.onclick=()=>{resetTimer();if(b.dataset.target==='custom'){$('#custom').classList.add('show');$('#customInput').focus()}else{state.targets[key()]=Number(b.dataset.target);save();render()}});$('#customApply').onclick=()=>{resetTimer();const n=Math.max(1,Math.min(99999,Number($('#customInput').value)||33));state.targets[key()]=n;$('#custom').classList.remove('show');save();render()};$('#theme').onclick=()=>{state.theme=state.theme==='royal'?'dark':state.theme==='dark'?'light':'royal';save();render()};$('#focus').onclick=()=>{document.body.classList.toggle('focus-mode');$('#focusbar').classList.toggle('show')};$('#exitFocus').onclick=()=>$('#focus').click();$('#cancel').onclick=()=>$('#modal').classList.remove('show');$('#add').onclick=()=>{const name=$('#newName').value.trim();if(!name){toast('Укажи название');return}const x={id:'custom-'+Date.now(),ar:$('#newAr').value.trim(),name,tr:$('#newTrans').value.trim(),target:33};state.custom.push(x);state.cat='custom';state.active=x.id;$('#modal').classList.remove('show');['#newAr','#newName','#newTrans'].forEach(s=>$(s).value='');resetTimer();save();render()};$('#modal').onclick=e=>{if(e.target.id==='modal')$('#modal').classList.remove('show')};window.addEventListener('keydown',e=>{if(e.target.matches('input,textarea'))return;if(e.code==='Space'||e.key==='Enter'){e.preventDefault();inc()}if(e.key.toLowerCase()==='r')reset();if(e.key.toLowerCase()==='z')undo();if(e.key.toLowerCase()==='f')$('#focus').click()});render();if('serviceWorker' in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('./chetki-sw.js').catch(()=>{}));
+</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+(function(){
+if(!window.THREE)return;
+const wrap=document.querySelector('.counter-wrap'),cv=document.createElement('canvas');
+cv.id='c3d';wrap.appendChild(cv);
+let R;try{R=new THREE.WebGLRenderer({canvas:cv,antialias:true,alpha:true})}catch(e){cv.remove();return}
+wrap.classList.add('has3d');
+const hit=document.createElement('div');hit.id='hit';wrap.appendChild(hit);
+R.setPixelRatio(Math.min(devicePixelRatio,2));
+R.outputEncoding=THREE.sRGBEncoding;R.toneMapping=THREE.ACESFilmicToneMapping;R.toneMappingExposure=1.15;
+const sc=new THREE.Scene(),cam=new THREE.PerspectiveCamera(38,.833,.1,60);
+
+/* studio environment for glossy reflections */
+const es=new THREE.Scene();
+es.add(new THREE.Mesh(new THREE.SphereGeometry(10,16,16),new THREE.MeshBasicMaterial({color:0x17130a,side:THREE.BackSide})));
+[[0,6,0,8,.3,8,0xfff0cc],[6,1,3,.3,5,5,0xffd98a],[-6,1,-2,.3,5,5,0x9fe8c8],[0,-5,4,6,.3,3,0xc9a050]].forEach(([x,y,z,w,h,d,c])=>{
+  const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),new THREE.MeshBasicMaterial({color:new THREE.Color(c).multiplyScalar(4)}));
+  m.position.set(x,y,z);es.add(m);
+});
+sc.environment=new THREE.PMREMGenerator(R).fromScene(es,.04).texture;
+sc.add(new THREE.HemisphereLight(0xfff1cf,0x1a1405,.5));
+const dl=new THREE.DirectionalLight(0xfff0d0,1.3);dl.position.set(2,3,5);sc.add(dl);
+const fl=new THREE.PointLight(0xffd27a,0,9);fl.position.set(0,0,2.5);sc.add(fl);
+
+/* pear-shaped hanging loop, widest at the bottom */
+const N=33,S=.88,CY=.2*S,P=[],M=400;
+for(let i=0;i<=M;i++){const u=i/M*Math.PI*2;P.push(new THREE.Vector3(S*.95*Math.sin(u)*(1-.28*Math.cos(u)),S*(1.55*Math.cos(u)+.2),S*.14*Math.sin(2*u)))}
+const cl=[0];for(let i=1;i<=M;i++)cl.push(cl[i-1]+P[i].distanceTo(P[i-1]));
+const L=cl[M],sp=L/N,sB=cl[M/2],rad=sp*.42;
+function at(s,out,tan){
+  s=((s%L)+L)%L;let a=0,b=M;
+  while(b-a>1){const m=(a+b)>>1;if(cl[m]<=s)a=m;else b=m}
+  const t=(s-cl[a])/(cl[b]-cl[a]||1);
+  out.lerpVectors(P[a],P[b],t);tan.subVectors(P[b],P[a]).normalize();
+}
+const rig=new THREE.Group();sc.add(rig);
+const geo=new THREE.SphereGeometry(1,40,28);
+const bm=new THREE.MeshPhysicalMaterial({color:0xffffff,metalness:.3,roughness:.26,clearcoat:1,clearcoatRoughness:.1,envMapIntensity:1.3});
+const gm=new THREE.MeshStandardMaterial({color:0xe5bb45,metalness:1,roughness:.26,envMapIntensity:1.4});
+const EB=new THREE.InstancedMesh(geo,bm,30),SB=new THREE.InstancedMesh(geo,gm,2);
+rig.add(EB,SB,new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(P.slice(0,M),true),240,.011,6,true),gm));
+
+/* imam bead with tassel: travels with the beads, tassel points away from the loop */
+const imam=new THREE.Group(),tas=new THREE.Group(),ib=new THREE.Mesh(geo,gm);
+ib.scale.set(sp*.52,sp*.6,sp*.52);
+const r0=sp*.6;
+const cord=new THREE.Mesh(new THREE.CylinderGeometry(.011,.011,.14,8),gm);cord.position.y=-r0-.07;
+const cap=new THREE.Mesh(geo,gm);cap.scale.setScalar(.045);cap.position.y=-r0-.15;
+const fr=new THREE.Mesh(new THREE.ConeGeometry(.08,.3,24,1,true),new THREE.MeshStandardMaterial({color:0xe5bb45,metalness:.7,roughness:.45,side:THREE.DoubleSide,envMapIntensity:1.2}));
+fr.position.y=-r0-.15-.17;
+tas.add(cord,cap,fr);imam.add(ib,tas);rig.add(imam);
+
+const o=new THREE.Vector3(),tn=new THREE.Vector3(),q=new THREE.Quaternion(),X=new THREE.Vector3(1,0,0),m4=new THREE.Matrix4(),sv=new THREE.Vector3();
+function layout(d){
+  let a=0,b=0;
+  for(let i=0;i<N;i++){
+    at(sB+(i+d)*sp,o,tn);
+    if(i===0){imam.position.copy(o);continue}
+    q.setFromUnitVectors(X,tn);
+    const sep=i%11===0;
+    if(sep)sv.set(rad*.5,rad*1.08,rad*1.08);else sv.setScalar(rad);
+    m4.compose(o,q,sv);
+    if(sep)SB.setMatrixAt(b++,m4);else EB.setMatrixAt(a++,m4);
+  }
+  EB.instanceMatrix.needsUpdate=true;SB.instanceMatrix.needsUpdate=true;
+}
+
+/* colors follow the page theme */
+let theme="";
+function recolor(){
+  const cs=getComputedStyle(document.documentElement);
+  const gc=new THREE.Color(cs.getPropertyValue("--gold").trim()||"#e5bb45").convertSRGBToLinear();
+  const ec=new THREE.Color(cs.getPropertyValue("--green2").trim()||"#31b889").convertSRGBToLinear().multiplyScalar(.55);
+  gm.color.copy(gc);fr.material.color.copy(gc);
+  for(let i=0;i<30;i++)EB.setColorAt(i,ec.clone().multiplyScalar(.85+Math.random()*.3));
+  EB.instanceColor.needsUpdate=true;
+}
+
+let target=0,disp=0,last=null,flash=0,px=0,py=0,dragging=false,dfr=0,t0=performance.now();
+window.T3={
+  set(c){
+    const t=document.documentElement.dataset.theme||"";
+    if(t!==theme){theme=t;recolor()}
+    if(last===null||Math.abs(c-last)>3||c<last-1)disp=c;
+    target=c;last=c;
+  },
+  pulse(big){flash=big?4:1.4},
+  drag(v){dragging=true;dfr=v},
+  end(){dragging=false;dfr=0}
+};
+addEventListener("pointermove",e=>{px=e.clientX/innerWidth-.5;py=e.clientY/innerHeight-.5});
+function fit(){
+  const w=cv.clientWidth,h=cv.clientHeight;if(!w||!h)return;
+  R.setSize(w,h,false);cam.aspect=w/h;
+  const t=Math.tan(cam.fov*Math.PI/360);
+  cam.position.set(0,-.12,Math.max(2/t,1.65/(cam.aspect*t)));
+  cam.lookAt(0,-.12,0);cam.updateProjectionMatrix();
+  /* touch area = the loop and its inside only */
+  cam.updateMatrixWorld();cam.matrixWorldInverse.copy(cam.matrixWorld).invert();
+  const v=new THREE.Vector3(),pts=[];
+  for(let i=0;i<M;i+=5){
+    v.copy(P[i]);v.y-=CY;const l=Math.hypot(v.x,v.y)||1;v.x+=v.x/l*.15;v.y+=v.y/l*.15;v.y+=CY;
+    v.project(cam);pts.push(((v.x+1)*50).toFixed(1)+'% '+((1-v.y)*50).toFixed(1)+'%');
+  }
+  hit.style.clipPath=hit.style.webkitClipPath='polygon('+pts.join(',')+')';
+}
+new ResizeObserver(fit).observe(cv);fit();
+
+function frame(now){
+  const dt=Math.min(.05,(now-t0)/1000);t0=now;
+  const prev=disp;
+  if(dragging)disp=target+dfr;else disp+=(target-disp)*(1-Math.exp(-dt*12));
+  const vel=(disp-prev)/Math.max(dt,.001);
+  layout(disp);
+  imam.rotation.z=Math.atan2(imam.position.x,-(imam.position.y-CY));
+  tas.rotation.z=Math.sin(now/520)*.07-Math.max(-4,Math.min(vel,4))*.02;
+  rig.rotation.y+=((Math.sin(now/2600)*.16+px*.35)-rig.rotation.y)*.05;
+  rig.rotation.x+=((-.05+py*.15)-rig.rotation.x)*.05;
+  fl.intensity=flash*2;flash*=Math.exp(-dt*6);
+  const k=1+flash*.03;ib.scale.set(sp*.52*k,sp*.6*k,sp*.52*k);
+  R.render(sc,cam);requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+try{T3.set(count())}catch(e){}
+
+/* swipe along the loop: forward counts, backward uncounts */
+function dec(){
+  const k=key(),c=state.counts[k]||0;if(c<=0)return false;
+  state.counts[k]=c-1;const day=todayKey();
+  if(state.daily[day]>0)state.daily[day]--;
+  const id=(item()||{}).id||state.active,di=state.dailyItems&&state.dailyItems[day];
+  if(di&&di[id]>0)di[id]--;
+  lastAction=null;save();
+  if(state.sound)beep('tick');
+  try{navigator.vibrate&&navigator.vibrate(5)}catch(e){}
+  render();return true;
+}
+const cnt=()=>state.counts[key()]||0;
+let g=null,swallow=false;
+hit.addEventListener('pointerdown',e=>{
+  if(e.button>0)return;
+  const r=wrap.getBoundingClientRect(),dx=e.clientX-(r.left+r.width/2),dy=e.clientY-(r.top+r.height*.426),th=Math.atan2(dx,-dy);
+  g={id:e.pointerId,x:e.clientX,y:e.clientY,tx:Math.cos(th),ty:Math.sin(th),spx:r.width*.067,done:0,off:0,moved:0,on:false,t:0};
+  try{hit.setPointerCapture(e.pointerId)}catch(_){}
+});
+hit.addEventListener('pointermove',e=>{
+  if(!g||e.pointerId!==g.id)return;
+  const mx=e.clientX-g.x,my=e.clientY-g.y;
+  g.moved=Math.max(g.moved,Math.hypot(mx,my));
+  if(!g.on&&g.moved<8)return;
+  g.on=true;
+  let x=((mx*g.tx+my*g.ty)+g.off)/g.spx;
+  if(g.lock)return;
+  if(x<g.done&&cnt()<=0){g.off+=(g.done-x)*g.spx;x=g.done}
+  if(x-g.done>=.5){inc();g.lock=true;T3.end();return}
+  if(g.done-x>=.5){dec();g.lock=true;T3.end();return}
+  T3.drag(x-g.done);
+});
+function up(e){
+  if(!g||e.pointerId!==g.id)return;
+  if(g.on){swallow=true;setTimeout(()=>{swallow=false},80)}
+  g=null;T3.end();
+}
+hit.addEventListener('pointerup',up);
+hit.addEventListener('pointercancel',up);
+wrap.addEventListener('click',e=>{if(swallow){e.stopImmediatePropagation();e.preventDefault();swallow=false}},true);
+})();
+
+</script>
+</body>
+</html>
