@@ -2,6 +2,7 @@
 html,body{margin:0;background:transparent!important;overflow:hidden}
 #cv{position:fixed;inset:0;width:100%;height:100%;pointer-events:none}
 </style></head><body><canvas id="cv"></canvas>
+<script src="fishdata.js"></script>
 <script>
 (function(){
 var PI=Math.PI;
@@ -162,11 +163,11 @@ function findSurface(){
 
 /* ================= fish ================= */
 var SPECIES=[
- {src:'fish/clown.png',len:130,wave:.9},
- {src:'fish/angel.png',len:130,wave:.6},
- {src:'fish/betta.png',len:150,wave:1.15},
- {src:'fish/goldfish.png',len:150,wave:1.05},
- {src:'fish/tang.png',len:140,wave:.8}
+ {src:window.FISH.clown,len:130,wave:.9},
+ {src:window.FISH.angel,len:130,wave:.6},
+ {src:window.FISH.betta,len:150,wave:1.15},
+ {src:window.FISH.goldfish,len:150,wave:1.05},
+ {src:window.FISH.tang,len:140,wave:.8}
 ];
 SPECIES.forEach(function(s){s.img=new Image();s.img.onload=function(){s.ok=true};s.img.src=s.src});
 var STRIPS=40;
@@ -292,8 +293,12 @@ function drawParticles(){
 /* ================= main loop ================= */
 var last=0,acc=0;
 function frame(now){
+  try{frameBody(now)}catch(e){window.__err=String(e)}
+  requestAnimationFrame(frame);
+}
+function frameBody(now){
   now/=1000;var dt=Math.min(.06,now-last||0);last=now;acc+=dt;
-  if(acc<1/40){requestAnimationFrame(frame);return}
+  if(acc<1/40)return;
   dt=acc;acc=0;T+=dt;burstCd=Math.max(0,burstCd-dt);
   if(T-lastTilt>1.5)thetaT=.22*Math.sin(T*.45);
   /* damped spring: liquid overshoot, works through a full flip */
@@ -332,7 +337,6 @@ function frame(now){
   gl.uniform1f(U.uFoam,Math.min(1,m2*.22+foamK));gl.uniform1f(U.uAer,Math.min(1,aerK+m2*.05));
   gl.uniform1f(U.uOn,fill>.004?1:0);
   gl.drawArrays(gl.TRIANGLE_STRIP,0,4);
-  requestAnimationFrame(frame);
 }
 initAudio();
 requestAnimationFrame(frame);
