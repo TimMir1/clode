@@ -1,0 +1,218 @@
+<!DOCTYPE html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><title>Вода</title><style>
+html,body{margin:0;background:transparent!important;overflow:hidden}
+#cv{position:fixed;inset:0;width:100%;height:100%;pointer-events:none}
+</style></head><body><canvas id="cv"></canvas>
+<script>
+(function(){
+var cv=document.getElementById('cv'),ax=cv.getContext('2d'),W=0,H=0,dpr=1;
+function size(){dpr=Math.min(window.devicePixelRatio||1,2);W=window.innerWidth;H=window.innerHeight;cv.width=Math.round(W*dpr);cv.height=Math.round(H*dpr)}
+size();addEventListener('resize',size);
+function K(){return Math.min(1.4,Math.max(.8,W/390))}
+function rnd(a,b){return a+Math.random()*(b-a)}
+var q=location.search.match(/level=([\d.]+)/),LEVEL=q?Math.max(.15,Math.min(.85,parseFloat(q[1]))):.45;
+
+/* ================= physics of the water ================= */
+var theta=0,omega=0,thetaT=0,lastTilt=-99,T=0;     /* theta = angle of gravity from screen-down, +right */
+var fill=0,fillT=0,drainT=-1,riseT=0;
+window.tilt=function(x,y){                          /* raw accelerometer: x right, y up (portrait) */
+  lastTilt=T;var gx=-x,gy=y,m=Math.hypot(gx,gy);
+  if(m<2.2){thetaT=0;return}
+  thetaT=Math.atan2(gx,gy);
+  if(thetaT>1.5)thetaT=1.5;if(thetaT<-1.5)thetaT=-1.5;
+};
+window.drain=function(){if(drainT<0){drainT=0;omega+=rnd(-2.5,2.5)}};
+
+/* geometry: water = {p : n.p >= c}, n = unit "down" vector */
+function clip(n,c){
+  var P=[[0,0],[W,0],[W,H],[0,H]],out=[],i,a,b,da,db,t;
+  for(i=0;i<4;i++){
+    a=P[i];b=P[(i+1)%4];da=n[0]*a[0]+n[1]*a[1]-c;db=n[0]*b[0]+n[1]*b[1]-c;
+    if(da>=0)out.push(a);
+    if((da>=0)!==(db>=0)){t=da/(da-db);out.push([a[0]+(b[0]-a[0])*t,a[1]+(b[1]-a[1])*t])}
+  }
+  return out;
+}
+function area(p){var s=0,i,a,b;for(i=0;i<p.length;i++){a=p[i];b=p[(i+1)%p.length];s+=a[0]*b[1]-b[0]*a[1]}return Math.abs(s)/2}
+function solveC(n,f){
+  var lo=Math.min(0,W*n[0],H*n[1],W*n[0]+H*n[1]),hi=Math.max(0,W*n[0],H*n[1],W*n[0]+H*n[1]),i,mid,target=f*W*H;
+  for(i=0;i<22;i++){mid=(lo+hi)/2;if(area(clip(n,mid))>target)lo=mid;else hi=mid}
+  return (lo+hi)/2;
+}
+
+/* ================= fish ================= */
+var SPECIES=[
+ {src:'fish/clown.png',len:130,wave:.9},
+ {src:'fish/angel.png',len:130,wave:.6},
+ {src:'fish/betta.png',len:150,wave:1.15},
+ {src:'fish/goldfish.png',len:150,wave:1.05},
+ {src:'fish/tang.png',len:140,wave:.8}
+];
+SPECIES.forEach(function(s){s.img=new Image();s.img.onload=function(){s.ok=true};s.img.src=s.src});
+var STRIPS=40;
+function drawFish(c,f,L){
+  var s=f.sp,img=s.img,iw=img.naturalWidth,ih=img.naturalHeight,h=L*ih/iw;
+  var A=f.amp*L*s.wave,sw=iw/STRIPS,dw=L/STRIPS,i,u,off,x;
+  for(i=0;i<STRIPS;i++){
+    u=(i+.5)/STRIPS;off=A*Math.sin(f.ph-u*4.2)*Math.pow(u,1.5);x=-L/2+i*dw;
+    c.drawImage(img,i*sw,0,sw+1,ih,x,-h/2+off,dw+1.2,h);
+  }
+}
+var fish=SPECIES.map(function(sp,i){return {sp:sp,x:rnd(60,W-60||300),y:-200-i*90,vx:rnd(-30,30),vy:0,f:Math.random()<.5?1:-1,ff:1,ph:Math.random()*6,sc:0,tgt:null,tt:0,speed:0,amp:.04,base:rnd(55,95),wet:false,flop:0}});
+fish.forEach(function(f){f.ff=f.f});
+
+/* ================= bubbles ================= */
+var bubbles=[];for(var bi=0;bi<26;bi++)bubbles.push({x:0,y:0,r:rnd(1.5,5),s:rnd(25,70),p:Math.random()*6,live:false});
+
+var N=[0,1],C=0,poly=[],a0,b0,surfLen=0,tdir=[1,0];
+function inWater(x,y,m){return N[0]*x+N[1]*y>C+(m||0)}
+function pickT(f){
+  var i,x,y,m=34+f.sp.len*.18;
+  for(i=0;i<40;i++){x=rnd(30,W-30);y=rnd(30,H-30);if(inWater(x,y,m)){f.tgt={x:x,y:y};f.tt=rnd(1.6,4);return}}
+  f.tgt={x:W/2,y:H-60};f.tt=1;
+}
+
+function step(f,dt){
+  var wet=fill>.02&&inWater(f.x,f.y,6);
+  var L=f.sp.len*K(),sp;
+  if(wet){
+    f.flop=0;
+    f.tt-=dt;if(!f.tgt||f.tt<=0||!inWater(f.tgt.x,f.tgt.y,20))pickT(f);
+    if(f.sc<=0&&Math.random()<dt*.12){f.sc=1;pickT(f)}
+    f.sc=Math.max(0,f.sc-dt/1.2);
+    var dx=f.tgt.x-f.x,dy=f.tgt.y-f.y,d=Math.hypot(dx,dy)||1;
+    if(d<28)pickT(f);
+    sp=f.base*K()*(1+f.sc*3);
+    var k=Math.min(1,dt*(f.sc>.3?6:1.8));
+    f.vx+=(dx/d*sp-f.vx)*k;f.vy+=(dy/d*sp*.8-f.vy)*k;
+    /* surface slosh pushes fish a little */
+    f.vx+=omega*18*dt;
+  }else{
+    f.sc=0;f.vx+=N[0]*1500*dt;f.vy+=N[1]*1500*dt;f.vx*=.992;f.vy*=.992;
+    f.flop+=dt;
+  }
+  f.x+=f.vx*dt;f.y+=f.vy*dt;
+  var half=L*.35;
+  if(f.x<half){f.x=half;f.vx=Math.abs(f.vx)*.3}
+  if(f.x>W-half){f.x=W-half;f.vx=-Math.abs(f.vx)*.3}
+  if(f.y<20){f.y=20;f.vy=Math.abs(f.vy)*.3}
+  if(f.y>H-20){f.y=H-20;f.vy=-Math.abs(f.vy)*.25;if(!wet)f.vx+=rnd(-60,60)}
+  if(Math.abs(f.vx)>8)f.f=f.vx>0?1:-1;
+  f.ff+=(f.f-f.ff)*Math.min(1,dt*8);
+  f.speed=Math.hypot(f.vx,f.vy);
+  f.ph+=dt*(wet?3.2+f.speed*.05:14);
+  f.amp=wet?.03+.05*Math.min(1,f.speed/150):.1;
+}
+
+/* ================= drawing ================= */
+function wavePts(time,amp,slosh){
+  /* returns surface polyline points (a0->b0) with wave offset along -n */
+  var pts=[],steps=Math.max(18,Math.round(surfLen/14)),i,s,u,off,x,y;
+  for(i=0;i<=steps;i++){
+    u=i/steps;s=u*surfLen;
+    off=amp*(Math.sin(s*.021+time*1.9)+.6*Math.sin(s*.047-time*2.7)+.3*Math.sin(s*.093+time*4.1))
+       +slosh*Math.sin(Math.PI*u*1.0+time*3.2)*Math.sin(time*1.1);
+    x=a0[0]+tdir[0]*s-N[0]*off;y=a0[1]+tdir[1]*s-N[1]*off;
+    pts.push([x,y]);
+  }
+  return pts;
+}
+function drawWater(time){
+  if(fill<=.004)return;
+  var amp=5+Math.min(14,Math.abs(omega)*3.2),slosh=Math.min(26,Math.abs(omega)*9);
+  /* find surface edge in clipped polygon */
+  var n=poly.length,i,ia=-1;
+  for(i=0;i<n;i++){
+    var p=poly[i],r=poly[(i+1)%n];
+    if(Math.abs(N[0]*p[0]+N[1]*p[1]-C)<.5&&Math.abs(N[0]*r[0]+N[1]*r[1]-C)<.5){ia=i;break}
+  }
+  var surf=null,path=new Path2D();
+  if(ia>=0&&fill<.985){
+    a0=poly[ia];b0=poly[(ia+1)%n];
+    var dx=b0[0]-a0[0],dy=b0[1]-a0[1];surfLen=Math.hypot(dx,dy);tdir=[dx/(surfLen||1),dy/(surfLen||1)];
+    surf=wavePts(time,amp,slosh);
+    path.moveTo(surf[0][0],surf[0][1]);
+    for(i=1;i<surf.length;i++)path.lineTo(surf[i][0],surf[i][1]);
+    for(i=(ia+2)%n,k=0;k<n-2;k++,i=(i+1)%n)path.lineTo(poly[i][0],poly[i][1]);
+    path.closePath();
+  }else{path.rect(0,0,W,H)}
+  var k;
+  /* body gradient along gravity */
+  var cx=(a0&&b0)?(a0[0]+b0[0])/2:W/2,cy=(a0&&b0)?(a0[1]+b0[1])/2:H/2,depth=Math.max(H*.5,200);
+  var g=ax.createLinearGradient(cx,cy,cx+N[0]*depth,cy+N[1]*depth);
+  g.addColorStop(0,'rgba(120,220,255,.26)');g.addColorStop(.35,'rgba(30,140,220,.38)');g.addColorStop(1,'rgba(6,40,120,.58)');
+  ax.save();ax.fillStyle=g;ax.fill(path);ax.clip(path);
+  /* caustic light shafts */
+  ax.globalCompositeOperation='lighter';
+  for(i=0;i<7;i++){
+    var u=(i+.5)/7,sx=a0?a0[0]+tdir[0]*surfLen*u:W*u,sy=a0?a0[1]+tdir[1]*surfLen*u:0;
+    var sway=Math.sin(time*.8+i*1.7)*34,wd=26+16*Math.sin(time*.9+i*2.3);
+    var ex=sx+N[0]*depth*1.3+tdir[0]*sway,ey=sy+N[1]*depth*1.3+tdir[1]*sway;
+    var lg=ax.createLinearGradient(sx,sy,ex,ey);lg.addColorStop(0,'rgba(170,240,255,.15)');lg.addColorStop(1,'rgba(170,240,255,0)');
+    ax.strokeStyle=lg;ax.lineWidth=wd;ax.beginPath();ax.moveTo(sx,sy);ax.lineTo(ex,ey);ax.stroke();
+  }
+  ax.globalCompositeOperation='source-over';
+  /* bubbles */
+  bubbles.forEach(function(b){
+    if(!b.live)return;
+    var a=Math.min(1,(N[0]*b.x+N[1]*b.y-C)/40);
+    ax.strokeStyle='rgba(225,250,255,'+(.55*a)+')';ax.lineWidth=1;ax.beginPath();ax.arc(b.x,b.y,b.r,0,6.283);ax.stroke();
+    ax.fillStyle='rgba(255,255,255,'+(.5*a)+')';ax.beginPath();ax.arc(b.x-b.r*.35,b.y-b.r*.35,b.r*.28,0,6.283);ax.fill();
+  });
+  ax.restore();
+  /* bright surface line */
+  if(surf){
+    ax.lineJoin='round';ax.lineCap='round';
+    ax.strokeStyle='rgba(190,240,255,.28)';ax.lineWidth=8;ax.beginPath();
+    surf.forEach(function(p,i){i?ax.lineTo(p[0],p[1]):ax.moveTo(p[0],p[1])});ax.stroke();
+    ax.strokeStyle='rgba(255,255,255,.75)';ax.lineWidth=2;ax.beginPath();
+    surf.forEach(function(p,i){i?ax.lineTo(p[0],p[1]):ax.moveTo(p[0],p[1])});ax.stroke();
+  }
+}
+function stepBubbles(dt){
+  bubbles.forEach(function(b){
+    if(!b.live){
+      if(fill>.1&&Math.random()<dt*1.4){
+        for(var t=0;t<20;t++){var x=rnd(10,W-10),y=rnd(10,H-10);if(inWater(x,y,60)){b.x=x;b.y=y;b.live=true;break}}
+      }
+      return;
+    }
+    b.x-=N[0]*b.s*dt-Math.sin(T*2+b.p)*10*dt;b.y-=N[1]*b.s*dt;
+    if(!inWater(b.x,b.y,3)||b.x<0||b.x>W||b.y<0||b.y>H)b.live=false;
+  });
+}
+
+var last=0,acc=0;
+function frame(now){
+  now/=1000;var dt=Math.min(.06,now-last||0);last=now;acc+=dt;
+  if(acc<1/40){requestAnimationFrame(frame);return}
+  dt=acc;acc=0;T+=dt;
+  /* idle drift if no sensor */
+  if(T-lastTilt>1.5)thetaT=.22*Math.sin(T*.45);
+  /* damped spring: liquid overshoot */
+  omega+=((thetaT-theta)*26-omega*2.6)*dt;theta+=omega*dt;
+  /* fill */
+  if(drainT>=0){drainT+=dt;var u=Math.min(1,drainT/4.6);fill=LEVEL*(1-u*u*(3-2*u))}
+  else{riseT+=dt;var r=Math.min(1,riseT/6.5);fill=LEVEL*(1-Math.pow(1-r,3));
+    if(riseT<6.5&&Math.random()<dt*2)omega+=rnd(-.9,.9)}
+  N=[Math.sin(theta),Math.cos(theta)];
+  C=solveC(N,Math.max(.0001,fill));poly=clip(N,C);
+  ax.setTransform(dpr,0,0,dpr,0,0);ax.clearRect(0,0,W,H);
+  fish.forEach(function(f){
+    if(!f.sp.ok)return;
+    if(f.y<-100&&fill<.02){return}           /* waiting above the screen until water arrives */
+    step(f,dt);
+    var L=f.sp.len*K();
+    ax.save();ax.translate(f.x,f.y);
+    var wob=f.flop>0?Math.sin(T*18+f.ph)*.5:0;
+    ax.rotate(Math.max(-.45,Math.min(.45,Math.atan2(f.vy,Math.abs(f.vx)+25)))*.75*f.ff+wob);
+    ax.scale(-f.ff,1);drawFish(ax,f,L);ax.restore();
+  });
+  stepBubbles(dt);
+  drawWater(T);
+  requestAnimationFrame(frame);
+}
+/* fish drop in as the water starts rising */
+fish.forEach(function(f,i){f.y=-120-i*60});
+requestAnimationFrame(frame);
+})();
+</script></body></html>

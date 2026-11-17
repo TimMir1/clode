@@ -1,0 +1,29 @@
+name: Build Water APK
+on:
+  workflow_dispatch:
+  push:
+    paths: ['water/**', '.github/workflows/build-water.yml']
+permissions:
+  contents: write
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: 17 }
+      - uses: gradle/actions/setup-gradle@v4
+        with: { gradle-version: 8.7 }
+      - run: gradle assembleDebug --no-daemon
+        working-directory: water
+      - uses: actions/upload-artifact@v4
+        with:
+          name: water-apk
+          path: water/app/build/outputs/apk/debug/app-debug.apk
+      - name: Publish public release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cp water/app/build/outputs/apk/debug/app-debug.apk Voda.apk
+          gh release delete water-latest --yes --cleanup-tag || true
+          gh release create water-latest Voda.apk --title "Вода (APK)" --notes "Скачай Voda.apk и установи на телефон." --latest=false
