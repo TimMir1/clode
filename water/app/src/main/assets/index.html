@@ -4,29 +4,138 @@ html,body{margin:0;background:transparent!important;overflow:hidden}
 </style></head><body><canvas id="cv"></canvas>
 <script>
 (function(){
-var cv=document.getElementById('cv'),ax=cv.getContext('2d'),W=0,H=0,dpr=1;
-function size(){dpr=Math.min(window.devicePixelRatio||1,2);W=window.innerWidth;H=window.innerHeight;cv.width=Math.round(W*dpr);cv.height=Math.round(H*dpr)}
+var PI=Math.PI;
+var cv=document.getElementById('cv');
+var gl=cv.getContext('webgl',{alpha:true,premultipliedAlpha:true,antialias:false,preserveDrawingBuffer:false});
+var sc=document.createElement('canvas'),c=sc.getContext('2d');
+var W=0,H=0,SCL=1;
+function size(){SCL=Math.min(window.devicePixelRatio||1,1.5);W=window.innerWidth;H=window.innerHeight;
+  cv.width=sc.width=Math.round(W*SCL);cv.height=sc.height=Math.round(H*SCL);if(gl)gl.viewport(0,0,cv.width,cv.height)}
 size();addEventListener('resize',size);
 function K(){return Math.min(1.4,Math.max(.8,W/390))}
 function rnd(a,b){return a+Math.random()*(b-a)}
-var q=location.search.match(/level=([\d.]+)/),LEVEL=q?Math.max(.15,Math.min(.85,parseFloat(q[1]))):.45;
+function wrap(a){while(a>PI)a-=2*PI;while(a<-PI)a+=2*PI;return a}
+var qs=location.search,ql=qs.match(/level=([\d.]+)/),LEVEL=ql?Math.max(.15,Math.min(.85,parseFloat(ql[1]))):.45,SOUND=/sound=1/.test(qs);
+
+/* ================= WebGL water shader ================= */
+var VS='attribute vec2 a;void main(){gl_Position=vec4(a,0.,1.);}';
+var FS=[
+'#ifdef GL_FRAGMENT_PRECISION_HIGH','precision highp float;','#else','precision mediump float;','#endif',
+'uniform sampler2D uScene;uniform vec2 uRes,uN,uTan;uniform float uScale,uT,uC,uAmp,uSlosh,uFoam,uAer,uOn;',
+'float hash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}',
+'float noise(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);return mix(mix(hash(i),hash(i+vec2(1.,0.)),f.x),mix(hash(i+vec2(0.,1.)),hash(i+vec2(1.,1.)),f.x),f.y);}',
+'float fbm(vec2 p){float v=0.,a=.5;for(int i=0;i<4;i++){v+=a*noise(p);p*=2.03;a*=.5;}return v;}',
+'float hgt(float s,float t){return uAmp*(sin(s*.021+t*1.9)+.6*sin(s*.047-t*2.7)+.3*sin(s*.093+t*4.1)+.16*sin(s*.19+t*5.6))+uSlosh*sin(s*.012+t*3.2)*sin(t*1.1);}',
+'float caustic(vec2 uv,float t){',
+' vec2 p=mod(uv*6.28318,6.28318)-250.;vec2 i=p;float c=1.,inten=.005;',
+' for(int n=0;n<4;n++){float tt=t*(1.-(3.5/float(n+1)));i=p+vec2(cos(tt-i.x)+sin(tt+i.y),sin(tt-i.y)+cos(tt+i.x));',
+'  c+=1./length(vec2(p.x/(sin(i.x+tt)/inten),p.y/(cos(i.y+tt)/inten)));}',
+' c/=4.;c=1.17-pow(c,1.4);return pow(abs(c),8.);}',
+'void main(){',
+' vec2 fc=gl_FragCoord.xy;vec2 uv=fc/uRes;vec2 p=vec2(fc.x,uRes.y-fc.y)/uScale;',
+' vec4 F0=texture2D(uScene,uv);',
+' if(uOn<.5){gl_FragColor=F0;return;}',
+' float s=dot(uTan,p);float h=hgt(s,uT);float d=dot(uN,p)-uC+h;',
+' if(d<-4.){gl_FragColor=F0;return;}',
+' float w=smoothstep(-1.,1.,d);float z=max(d,0.);',
+' float slope=(hgt(s+1.5,uT)-hgt(s-1.5,uT))/3.;',
+' float near=smoothstep(0.,70.,z);',
+' vec2 off=vec2(sin(p.y*.045+uT*1.7)+.6*sin(p.y*.11-uT*2.3),cos(p.x*.04+uT*1.4)+.5*sin(p.x*.13+uT*2.1))*(1.6+3.4*(1.-near)+uAmp*.12);',
+' vec4 F=texture2D(uScene,uv+vec2(off.x,-off.y)*uScale/uRes);',
+' float a=1.-exp(-z/200.);',
+' vec3 col=mix(vec3(.46,.82,.92),vec3(.02,.20,.38),a);',
+' float wa=.26+.34*a;',
+/* light: caustics, shafts, haze */
+' float L=0.;',
+' float ca=caustic(p/300.+vec2(.0,uT*.02),uT*.55);',
+' L+=ca*exp(-z/330.)*.9;',
+' float ray=smoothstep(.5,.95,noise(vec2(s*.016,uT*.22)))*exp(-z/420.)*.30;',
+' L+=ray;',
+' L+=uAer*.20*fbm(p*.05+vec2(0.,uT*1.3))*exp(-z/260.);',
+' L+=exp(-z/16.)*.20;',
+/* glass thickness at the screen border */
+' float e=min(min(p.x,uRes.x/uScale-p.x),min(p.y,uRes.y/uScale-p.y));',
+' L+=exp(-e/4.5)*.22;',
+/* foam */
+' float fn=fbm(p*.07+vec2(uT*.4,0.));',
+' float foam=smoothstep(.50,.78,fn)*exp(-z/(7.+uFoam*34.))*(.18+.82*uFoam);',
+' foam+=exp(-z/2.2)*.18;',
+/* specular glints on the ripples */
+' float glint=pow(clamp(1.-abs(slope*3.2-.55),0.,1.),10.)*exp(-abs(d)/2.8);',
+' float rim=exp(-abs(d)/1.5);',
+' L+=glint*.9;',
+' col=mix(col,vec3(.86,.97,1.),clamp(L,0.,1.));wa=wa+clamp(L,0.,1.)*(1.-wa)*.75;',
+' col=mix(col,vec3(1.),clamp(foam,0.,1.));wa=mix(wa,.96,clamp(foam,0.,1.)*.85);',
+' col=mix(col,vec3(1.),rim*.9);',
+' float wA=max(wa*w,rim*.78*step(-3.,d));',
+' vec3 rgb=col*wA+F.rgb*(1.-wA);float oa=wA+F.a*(1.-wA);',
+' gl_FragColor=vec4(rgb,oa);',
+'}'].join('\n');
+var prog=null,U={},tex=null;
+function sh(t,src){var s=gl.createShader(t);gl.shaderSource(s,src);gl.compileShader(s);if(!gl.getShaderParameter(s,gl.COMPILE_STATUS))throw new Error(gl.getShaderInfoLog(s));return s}
+function initGL(){
+  prog=gl.createProgram();gl.attachShader(prog,sh(gl.VERTEX_SHADER,VS));gl.attachShader(prog,sh(gl.FRAGMENT_SHADER,FS));gl.linkProgram(prog);
+  if(!gl.getProgramParameter(prog,gl.LINK_STATUS))throw new Error(gl.getProgramInfoLog(prog));
+  gl.useProgram(prog);
+  var b=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,b);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,1,-1,-1,1,1,1]),gl.STATIC_DRAW);
+  var loc=gl.getAttribLocation(prog,'a');gl.enableVertexAttribArray(loc);gl.vertexAttribPointer(loc,2,gl.FLOAT,false,0,0);
+  ['uScene','uRes','uN','uTan','uScale','uT','uC','uAmp','uSlosh','uFoam','uAer','uOn'].forEach(function(n){U[n]=gl.getUniformLocation(prog,n)});
+  tex=gl.createTexture();gl.bindTexture(gl.TEXTURE_2D,tex);
+  gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);
+  gl.clearColor(0,0,0,0);
+}
+initGL();
+
+/* ================= sound ================= */
+var AC=null,gSlosh=null,bpSlosh=null,noiseBuf=null;
+function initAudio(){
+  if(!SOUND)return;
+  try{
+    AC=new (window.AudioContext||window.webkitAudioContext)();
+    var len=AC.sampleRate*2,buf=AC.createBuffer(1,len,AC.sampleRate),d=buf.getChannelData(0),i,b=0;
+    for(i=0;i<len;i++){b=b*.96+(Math.random()*2-1)*.2;d[i]=b*3}           /* brownish noise */
+    noiseBuf=buf;
+    var src=AC.createBufferSource();src.buffer=buf;src.loop=true;
+    bpSlosh=AC.createBiquadFilter();bpSlosh.type='bandpass';bpSlosh.frequency.value=600;bpSlosh.Q.value=.6;
+    gSlosh=AC.createGain();gSlosh.gain.value=0;
+    src.connect(bpSlosh);bpSlosh.connect(gSlosh);gSlosh.connect(AC.destination);src.start();
+    if(AC.state==='suspended')AC.resume();
+  }catch(e){AC=null}
+}
+function sndSplash(k){
+  if(!AC)return;try{
+    var s=AC.createBufferSource();s.buffer=noiseBuf;var f=AC.createBiquadFilter();f.type='bandpass';f.frequency.value=1500+Math.random()*1200;f.Q.value=.8;
+    var g=AC.createGain(),t=AC.currentTime;g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(.5*k,t+.03);g.gain.exponentialRampToValueAtTime(.0001,t+.7);
+    s.connect(f);f.connect(g);g.connect(AC.destination);s.start(t,Math.random());s.stop(t+.8);
+  }catch(e){}
+}
+function sndBloop(){
+  if(!AC)return;try{
+    var o=AC.createOscillator(),g=AC.createGain(),t=AC.currentTime,f=260+Math.random()*420;
+    o.type='sine';o.frequency.setValueAtTime(f,t);o.frequency.exponentialRampToValueAtTime(f*2.2,t+.08);
+    g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(.09,t+.01);g.gain.exponentialRampToValueAtTime(.0001,t+.11);
+    o.connect(g);g.connect(AC.destination);o.start(t);o.stop(t+.12);
+  }catch(e){}
+}
 
 /* ================= physics of the water ================= */
-var theta=0,omega=0,thetaT=0,lastTilt=-99,T=0;     /* theta = angle of gravity from screen-down, +right */
-var fill=0,fillT=0,drainT=-1,riseT=0;
-window.tilt=function(x,y){                          /* raw accelerometer: x right, y up (portrait) */
+var theta=0,omega=0,thetaT=0,lastTilt=-99,T=0,prevT=0,burstCd=0;
+var fill=0,drainT=-1,riseT=0,foamK=0,aerK=0;
+var N=[0,1],C=0,poly=[],a0=[0,0],b0=[0,0],surfLen=0,tdir=[1,0],haveSurf=false;
+window.tilt=function(x,y){
   lastTilt=T;var gx=-x,gy=y,m=Math.hypot(gx,gy);
-  if(m<2.2){thetaT=0;return}
-  thetaT=Math.atan2(gx,gy);
-  if(thetaT>1.5)thetaT=1.5;if(thetaT<-1.5)thetaT=-1.5;
+  if(m<2.2)return;
+  var nt=Math.atan2(gx,gy);
+  if(Math.abs(wrap(nt-thetaT))>1.0&&burstCd<=0)burst(Math.min(1,Math.abs(wrap(nt-thetaT))/2.2));
+  thetaT=nt;
 };
-window.drain=function(){if(drainT<0){drainT=0;omega+=rnd(-2.5,2.5)}};
+window.drain=function(){if(drainT<0){drainT=0;omega+=rnd(-2.5,2.5);burst(.6)}};
 
-/* geometry: water = {p : n.p >= c}, n = unit "down" vector */
-function clip(n,c){
+function clip(n,cc){
   var P=[[0,0],[W,0],[W,H],[0,H]],out=[],i,a,b,da,db,t;
   for(i=0;i<4;i++){
-    a=P[i];b=P[(i+1)%4];da=n[0]*a[0]+n[1]*a[1]-c;db=n[0]*b[0]+n[1]*b[1]-c;
+    a=P[i];b=P[(i+1)%4];da=n[0]*a[0]+n[1]*a[1]-cc;db=n[0]*b[0]+n[1]*b[1]-cc;
     if(da>=0)out.push(a);
     if((da>=0)!==(db>=0)){t=da/(da-db);out.push([a[0]+(b[0]-a[0])*t,a[1]+(b[1]-a[1])*t])}
   }
@@ -37,6 +146,18 @@ function solveC(n,f){
   var lo=Math.min(0,W*n[0],H*n[1],W*n[0]+H*n[1]),hi=Math.max(0,W*n[0],H*n[1],W*n[0]+H*n[1]),i,mid,target=f*W*H;
   for(i=0;i<22;i++){mid=(lo+hi)/2;if(area(clip(n,mid))>target)lo=mid;else hi=mid}
   return (lo+hi)/2;
+}
+function inWater(x,y,m){return N[0]*x+N[1]*y>C+(m||0)}
+function findSurface(){
+  haveSurf=false;var n=poly.length,i;
+  for(i=0;i<n;i++){
+    var p=poly[i],r=poly[(i+1)%n];
+    if(Math.abs(N[0]*p[0]+N[1]*p[1]-C)<.6&&Math.abs(N[0]*r[0]+N[1]*r[1]-C)<.6){
+      a0=p;b0=r;var dx=b0[0]-a0[0],dy=b0[1]-a0[1];surfLen=Math.hypot(dx,dy);
+      if(surfLen>1){tdir=[dx/surfLen,dy/surfLen];haveSurf=true}
+      return;
+    }
+  }
 }
 
 /* ================= fish ================= */
@@ -49,7 +170,7 @@ var SPECIES=[
 ];
 SPECIES.forEach(function(s){s.img=new Image();s.img.onload=function(){s.ok=true};s.img.src=s.src});
 var STRIPS=40;
-function drawFish(c,f,L){
+function drawFish(f,L){
   var s=f.sp,img=s.img,iw=img.naturalWidth,ih=img.naturalHeight,h=L*ih/iw;
   var A=f.amp*L*s.wave,sw=iw/STRIPS,dw=L/STRIPS,i,u,off,x;
   for(i=0;i<STRIPS;i++){
@@ -57,162 +178,164 @@ function drawFish(c,f,L){
     c.drawImage(img,i*sw,0,sw+1,ih,x,-h/2+off,dw+1.2,h);
   }
 }
-var fish=SPECIES.map(function(sp,i){return {sp:sp,x:rnd(60,W-60||300),y:-200-i*90,vx:rnd(-30,30),vy:0,f:Math.random()<.5?1:-1,ff:1,ph:Math.random()*6,sc:0,tgt:null,tt:0,speed:0,amp:.04,base:rnd(55,95),wet:false,flop:0}});
-fish.forEach(function(f){f.ff=f.f});
-
-/* ================= bubbles ================= */
-var bubbles=[];for(var bi=0;bi<26;bi++)bubbles.push({x:0,y:0,r:rnd(1.5,5),s:rnd(25,70),p:Math.random()*6,live:false});
-
-var N=[0,1],C=0,poly=[],a0,b0,surfLen=0,tdir=[1,0];
-function inWater(x,y,m){return N[0]*x+N[1]*y>C+(m||0)}
+var fish=SPECIES.map(function(sp,i){return {sp:sp,x:rnd(60,Math.max(120,W-60)),y:-200-i*90,vx:rnd(-30,30),vy:0,f:Math.random()<.5?1:-1,ff:1,ph:Math.random()*6,sc:0,tgt:null,tt:0,speed:0,amp:.04,base:rnd(55,95),flop:0}});
+fish.forEach(function(f,i){f.ff=f.f;f.y=-120-i*60});
 function pickT(f){
   var i,x,y,m=34+f.sp.len*.18;
   for(i=0;i<40;i++){x=rnd(30,W-30);y=rnd(30,H-30);if(inWater(x,y,m)){f.tgt={x:x,y:y};f.tt=rnd(1.6,4);return}}
   f.tgt={x:W/2,y:H-60};f.tt=1;
 }
-
-function step(f,dt){
-  var wet=fill>.02&&inWater(f.x,f.y,6);
-  var L=f.sp.len*K(),sp;
+function stepFish(f,dt){
+  var wet=fill>.02&&inWater(f.x,f.y,6),L=f.sp.len*K(),sp;
   if(wet){
-    f.flop=0;
-    f.tt-=dt;if(!f.tgt||f.tt<=0||!inWater(f.tgt.x,f.tgt.y,20))pickT(f);
+    f.flop=0;f.tt-=dt;if(!f.tgt||f.tt<=0||!inWater(f.tgt.x,f.tgt.y,20))pickT(f);
     if(f.sc<=0&&Math.random()<dt*.12){f.sc=1;pickT(f)}
     f.sc=Math.max(0,f.sc-dt/1.2);
-    var dx=f.tgt.x-f.x,dy=f.tgt.y-f.y,d=Math.hypot(dx,dy)||1;
-    if(d<28)pickT(f);
-    sp=f.base*K()*(1+f.sc*3);
-    var k=Math.min(1,dt*(f.sc>.3?6:1.8));
+    var dx=f.tgt.x-f.x,dy=f.tgt.y-f.y,d=Math.hypot(dx,dy)||1;if(d<28)pickT(f);
+    sp=f.base*K()*(1+f.sc*3);var k=Math.min(1,dt*(f.sc>.3?6:1.8));
     f.vx+=(dx/d*sp-f.vx)*k;f.vy+=(dy/d*sp*.8-f.vy)*k;
-    /* surface slosh pushes fish a little */
-    f.vx+=omega*18*dt;
-  }else{
-    f.sc=0;f.vx+=N[0]*1500*dt;f.vy+=N[1]*1500*dt;f.vx*=.992;f.vy*=.992;
-    f.flop+=dt;
-  }
+    f.vx+=omega*N[1]*18*dt;f.vy-=omega*N[0]*18*dt;
+  }else{f.sc=0;f.vx+=N[0]*1500*dt;f.vy+=N[1]*1500*dt;f.vx*=.992;f.vy*=.992;f.flop+=dt}
   f.x+=f.vx*dt;f.y+=f.vy*dt;
   var half=L*.35;
-  if(f.x<half){f.x=half;f.vx=Math.abs(f.vx)*.3}
-  if(f.x>W-half){f.x=W-half;f.vx=-Math.abs(f.vx)*.3}
-  if(f.y<20){f.y=20;f.vy=Math.abs(f.vy)*.3}
-  if(f.y>H-20){f.y=H-20;f.vy=-Math.abs(f.vy)*.25;if(!wet)f.vx+=rnd(-60,60)}
+  if(f.x<half){f.x=half;f.vx=Math.abs(f.vx)*.3}if(f.x>W-half){f.x=W-half;f.vx=-Math.abs(f.vx)*.3}
+  if(f.y<20){f.y=20;f.vy=Math.abs(f.vy)*.3}if(f.y>H-20){f.y=H-20;f.vy=-Math.abs(f.vy)*.25;if(!wet)f.vx+=rnd(-60,60)}
   if(Math.abs(f.vx)>8)f.f=f.vx>0?1:-1;
-  f.ff+=(f.f-f.ff)*Math.min(1,dt*8);
-  f.speed=Math.hypot(f.vx,f.vy);
-  f.ph+=dt*(wet?3.2+f.speed*.05:14);
-  f.amp=wet?.03+.05*Math.min(1,f.speed/150):.1;
+  f.ff+=(f.f-f.ff)*Math.min(1,dt*8);f.speed=Math.hypot(f.vx,f.vy);
+  f.ph+=dt*(wet?3.2+f.speed*.05:14);f.amp=wet?.03+.05*Math.min(1,f.speed/150):.1;
 }
 
-/* ================= drawing ================= */
-function wavePts(time,amp,slosh){
-  /* returns surface polyline points (a0->b0) with wave offset along -n */
-  var pts=[],steps=Math.max(18,Math.round(surfLen/14)),i,s,u,off,x,y;
-  for(i=0;i<=steps;i++){
-    u=i/steps;s=u*surfLen;
-    off=amp*(Math.sin(s*.021+time*1.9)+.6*Math.sin(s*.047-time*2.7)+.3*Math.sin(s*.093+time*4.1))
-       +slosh*Math.sin(Math.PI*u*1.0+time*3.2)*Math.sin(time*1.1);
-    x=a0[0]+tdir[0]*s-N[0]*off;y=a0[1]+tdir[1]*s-N[1]*off;
-    pts.push([x,y]);
-  }
-  return pts;
+/* ================= particles ================= */
+var bubbles=[],drops=[],glass=[];
+function spawnBubble(strong){
+  if(bubbles.length>(strong?90:46))return;
+  for(var t=0;t<14;t++){var x=rnd(10,W-10),y=rnd(10,H-10);if(inWater(x,y,50)){bubbles.push({x:x,y:y,r:rnd(1.4,strong?7:5),s:rnd(30,90),p:Math.random()*6});return}}
 }
-function drawWater(time){
-  if(fill<=.004)return;
-  var amp=5+Math.min(14,Math.abs(omega)*3.2),slosh=Math.min(26,Math.abs(omega)*9);
-  /* find surface edge in clipped polygon */
-  var n=poly.length,i,ia=-1;
-  for(i=0;i<n;i++){
-    var p=poly[i],r=poly[(i+1)%n];
-    if(Math.abs(N[0]*p[0]+N[1]*p[1]-C)<.5&&Math.abs(N[0]*r[0]+N[1]*r[1]-C)<.5){ia=i;break}
-  }
-  var surf=null,path=new Path2D();
-  if(ia>=0&&fill<.985){
-    a0=poly[ia];b0=poly[(ia+1)%n];
-    var dx=b0[0]-a0[0],dy=b0[1]-a0[1];surfLen=Math.hypot(dx,dy);tdir=[dx/(surfLen||1),dy/(surfLen||1)];
-    surf=wavePts(time,amp,slosh);
-    path.moveTo(surf[0][0],surf[0][1]);
-    for(i=1;i<surf.length;i++)path.lineTo(surf[i][0],surf[i][1]);
-    for(i=(ia+2)%n,k=0;k<n-2;k++,i=(i+1)%n)path.lineTo(poly[i][0],poly[i][1]);
-    path.closePath();
-  }else{path.rect(0,0,W,H)}
-  var k;
-  /* body gradient along gravity */
-  var cx=(a0&&b0)?(a0[0]+b0[0])/2:W/2,cy=(a0&&b0)?(a0[1]+b0[1])/2:H/2,depth=Math.max(H*.5,200);
-  var g=ax.createLinearGradient(cx,cy,cx+N[0]*depth,cy+N[1]*depth);
-  g.addColorStop(0,'rgba(120,220,255,.26)');g.addColorStop(.35,'rgba(30,140,220,.38)');g.addColorStop(1,'rgba(6,40,120,.58)');
-  ax.save();ax.fillStyle=g;ax.fill(path);ax.clip(path);
-  /* caustic light shafts */
-  ax.globalCompositeOperation='lighter';
-  for(i=0;i<7;i++){
-    var u=(i+.5)/7,sx=a0?a0[0]+tdir[0]*surfLen*u:W*u,sy=a0?a0[1]+tdir[1]*surfLen*u:0;
-    var sway=Math.sin(time*.8+i*1.7)*34,wd=26+16*Math.sin(time*.9+i*2.3);
-    var ex=sx+N[0]*depth*1.3+tdir[0]*sway,ey=sy+N[1]*depth*1.3+tdir[1]*sway;
-    var lg=ax.createLinearGradient(sx,sy,ex,ey);lg.addColorStop(0,'rgba(170,240,255,.15)');lg.addColorStop(1,'rgba(170,240,255,0)');
-    ax.strokeStyle=lg;ax.lineWidth=wd;ax.beginPath();ax.moveTo(sx,sy);ax.lineTo(ex,ey);ax.stroke();
-  }
-  ax.globalCompositeOperation='source-over';
-  /* bubbles */
-  bubbles.forEach(function(b){
-    if(!b.live)return;
-    var a=Math.min(1,(N[0]*b.x+N[1]*b.y-C)/40);
-    ax.strokeStyle='rgba(225,250,255,'+(.55*a)+')';ax.lineWidth=1;ax.beginPath();ax.arc(b.x,b.y,b.r,0,6.283);ax.stroke();
-    ax.fillStyle='rgba(255,255,255,'+(.5*a)+')';ax.beginPath();ax.arc(b.x-b.r*.35,b.y-b.r*.35,b.r*.28,0,6.283);ax.fill();
-  });
-  ax.restore();
-  /* bright surface line */
-  if(surf){
-    ax.lineJoin='round';ax.lineCap='round';
-    ax.strokeStyle='rgba(190,240,255,.28)';ax.lineWidth=8;ax.beginPath();
-    surf.forEach(function(p,i){i?ax.lineTo(p[0],p[1]):ax.moveTo(p[0],p[1])});ax.stroke();
-    ax.strokeStyle='rgba(255,255,255,.75)';ax.lineWidth=2;ax.beginPath();
-    surf.forEach(function(p,i){i?ax.lineTo(p[0],p[1]):ax.moveTo(p[0],p[1])});ax.stroke();
-  }
+function surfPoint(){var u=Math.random();return [a0[0]+tdir[0]*surfLen*u,a0[1]+tdir[1]*surfLen*u]}
+function spawnDrop(k){
+  if(!haveSurf||drops.length>150)return;var p=surfPoint(),sp=rnd(120,380)*k;
+  drops.push({x:p[0],y:p[1],vx:tdir[0]*rnd(-1,1)*140*k-N[0]*sp,vy:tdir[1]*rnd(-1,1)*140*k-N[1]*sp,r:rnd(1.2,4.2),life:0});
 }
-function stepBubbles(dt){
-  bubbles.forEach(function(b){
-    if(!b.live){
-      if(fill>.1&&Math.random()<dt*1.4){
-        for(var t=0;t<20;t++){var x=rnd(10,W-10),y=rnd(10,H-10);if(inWater(x,y,60)){b.x=x;b.y=y;b.live=true;break}}
-      }
-      return;
+function spawnGlass(){
+  if(!haveSurf||glass.length>38)return;
+  var p=surfPoint(),up=rnd(8,120);
+  var x=p[0]-N[0]*up,y=p[1]-N[1]*up;
+  if(x<6||x>W-6||y<6||y>H-6||inWater(x,y,0))return;
+  glass.push({x:x,y:y,x0:x,y0:y,r:rnd(2.2,6),hold:rnd(.4,3),v:0,vmax:rnd(14,46),age:0});
+}
+function burst(k){
+  burstCd=1.1;foamK=Math.max(foamK,k);aerK=Math.max(aerK,k);
+  var i,n=Math.round(46*k);for(i=0;i<n;i++)spawnDrop(.9+k*.8);
+  for(i=0;i<Math.round(30*k);i++)spawnBubble(true);
+  for(i=0;i<Math.round(9*k);i++)spawnGlass();
+  sndSplash(.5+k*.5);
+}
+function stepParticles(dt){
+  var i,b,d,g;
+  /* continuous shedding while the water is moving */
+  var m=Math.abs(omega);
+  if(fill>.05){
+    var r=Math.max(0,m-1.4);
+    if(Math.random()<r*10*dt)spawnDrop(.5+Math.min(1,r*.3));
+    if(Math.random()<(m>1?r*2.4:0)*dt)spawnGlass();
+    if(drainT>=0&&Math.random()<5*dt)spawnGlass();
+    if(Math.random()<dt*(.9+m*.6)){spawnBubble(false);if(Math.random()<.18)sndBloop()}
+  }
+  for(i=bubbles.length-1;i>=0;i--){
+    b=bubbles[i];b.x-=N[0]*b.s*dt-Math.sin(T*2+b.p)*12*dt;b.y-=N[1]*b.s*dt;
+    if(!inWater(b.x,b.y,2)||b.x<0||b.x>W||b.y<0||b.y>H)bubbles.splice(i,1);
+  }
+  for(i=drops.length-1;i>=0;i--){
+    d=drops[i];d.life+=dt;d.vx+=N[0]*1750*dt;d.vy+=N[1]*1750*dt;d.x+=d.vx*dt;d.y+=d.vy*dt;
+    if(inWater(d.x,d.y,0)||d.x<-40||d.x>W+40||d.y<-60||d.y>H+60||d.life>3){
+      if(inWater(d.x,d.y,0)&&Math.random()<.35)bubbles.push({x:d.x,y:d.y+N[1]*6,r:rnd(1.2,3),s:rnd(30,60),p:Math.random()*6});
+      drops.splice(i,1);
     }
-    b.x-=N[0]*b.s*dt-Math.sin(T*2+b.p)*10*dt;b.y-=N[1]*b.s*dt;
-    if(!inWater(b.x,b.y,3)||b.x<0||b.x>W||b.y<0||b.y>H)b.live=false;
-  });
+  }
+  for(i=glass.length-1;i>=0;i--){
+    g=glass[i];g.age+=dt;
+    if(g.hold>0)g.hold-=dt;else{g.v=Math.min(g.vmax,g.v+60*dt);if(Math.random()<dt*.5)g.hold=rnd(.2,1.2),g.v*=.2;g.x+=N[0]*g.v*dt;g.y+=N[1]*g.v*dt}
+    if(g.x<-10||g.x>W+10||g.y<-10||g.y>H+10||inWater(g.x,g.y,0)||g.age>30)glass.splice(i,1);
+  }
+}
+function drawParticles(){
+  var i,b,d,g;
+  c.lineCap='round';
+  /* bubbles */
+  for(i=0;i<bubbles.length;i++){
+    b=bubbles[i];
+    c.fillStyle='rgba(255,255,255,.07)';c.beginPath();c.arc(b.x,b.y,b.r,0,7);c.fill();
+    c.strokeStyle='rgba(235,252,255,.78)';c.lineWidth=1.1;c.beginPath();c.arc(b.x,b.y,b.r,0,7);c.stroke();
+    c.strokeStyle='rgba(255,255,255,.95)';c.lineWidth=1.3;c.beginPath();c.arc(b.x,b.y,b.r*.62,3.6,4.9);c.stroke();
+  }
+  /* flying droplets */
+  for(i=0;i<drops.length;i++){
+    d=drops[i];var sp=Math.hypot(d.vx,d.vy),a=Math.max(0,1-d.life/3);
+    c.strokeStyle='rgba(205,236,255,'+(.55*a)+')';c.lineWidth=d.r*1.5;
+    c.beginPath();c.moveTo(d.x,d.y);c.lineTo(d.x-d.vx*.012,d.y-d.vy*.012);c.stroke();
+    c.fillStyle='rgba(220,244,255,'+(.8*a)+')';c.beginPath();c.arc(d.x,d.y,d.r,0,7);c.fill();
+    c.fillStyle='rgba(255,255,255,'+a+')';c.beginPath();c.arc(d.x-d.r*.3,d.y-d.r*.3,d.r*.35,0,7);c.fill();
+  }
+  /* drops sliding on the glass */
+  for(i=0;i<glass.length;i++){
+    g=glass[i];
+    if(g.v>.5){c.strokeStyle='rgba(190,225,250,.13)';c.lineWidth=g.r*.75;c.beginPath();c.moveTo(g.x0,g.y0);c.lineTo(g.x,g.y);c.stroke()}
+    c.save();c.translate(g.x,g.y);c.rotate(Math.atan2(N[0],-N[1])*-1+0);
+    c.beginPath();c.ellipse(0,0,g.r*.85,g.r*1.12,0,0,7);c.fillStyle='rgba(175,215,245,.16)';c.fill();
+    c.strokeStyle='rgba(20,50,90,.38)';c.lineWidth=1.1;c.beginPath();c.arc(0,0,g.r*.9,.2,2.9);c.stroke();
+    c.strokeStyle='rgba(255,255,255,.7)';c.lineWidth=1.2;c.beginPath();c.arc(0,0,g.r*.9,3.6,5.2);c.stroke();
+    c.fillStyle='rgba(255,255,255,.9)';c.beginPath();c.arc(-g.r*.3,-g.r*.4,g.r*.22,0,7);c.fill();
+    c.restore();
+  }
 }
 
+/* ================= main loop ================= */
 var last=0,acc=0;
 function frame(now){
   now/=1000;var dt=Math.min(.06,now-last||0);last=now;acc+=dt;
   if(acc<1/40){requestAnimationFrame(frame);return}
-  dt=acc;acc=0;T+=dt;
-  /* idle drift if no sensor */
+  dt=acc;acc=0;T+=dt;burstCd=Math.max(0,burstCd-dt);
   if(T-lastTilt>1.5)thetaT=.22*Math.sin(T*.45);
-  /* damped spring: liquid overshoot */
-  omega+=((thetaT-theta)*26-omega*2.6)*dt;theta+=omega*dt;
-  /* fill */
+  /* damped spring: liquid overshoot, works through a full flip */
+  omega+=(wrap(thetaT-theta)*22-omega*2.3)*dt;
+  if(omega>9)omega=9;if(omega<-9)omega=-9;
+  theta+=omega*dt;
+  if(Math.abs(omega)>6&&burstCd<=0)burst(.7);
   if(drainT>=0){drainT+=dt;var u=Math.min(1,drainT/4.6);fill=LEVEL*(1-u*u*(3-2*u))}
   else{riseT+=dt;var r=Math.min(1,riseT/6.5);fill=LEVEL*(1-Math.pow(1-r,3));
-    if(riseT<6.5&&Math.random()<dt*2)omega+=rnd(-.9,.9)}
+    if(riseT<6.5&&Math.random()<dt*2)omega+=rnd(-.9,.9);
+    if(riseT<dt*1.5+.05){burst(.8)}}
+  foamK=Math.max(0,foamK-dt*.5);aerK=Math.max(0,aerK-dt*.35);
   N=[Math.sin(theta),Math.cos(theta)];
-  C=solveC(N,Math.max(.0001,fill));poly=clip(N,C);
-  ax.setTransform(dpr,0,0,dpr,0,0);ax.clearRect(0,0,W,H);
+  C=fill>.004?solveC(N,fill):1e6;poly=fill>.004?clip(N,C):[];findSurface();
+  /* scene layer: fish + particles */
+  c.setTransform(SCL,0,0,SCL,0,0);c.clearRect(0,0,W,H);
   fish.forEach(function(f){
-    if(!f.sp.ok)return;
-    if(f.y<-100&&fill<.02){return}           /* waiting above the screen until water arrives */
-    step(f,dt);
-    var L=f.sp.len*K();
-    ax.save();ax.translate(f.x,f.y);
+    if(!f.sp.ok)return;if(f.y<-100&&fill<.02)return;
+    stepFish(f,dt);var L=f.sp.len*K();
+    c.save();c.translate(f.x,f.y);
     var wob=f.flop>0?Math.sin(T*18+f.ph)*.5:0;
-    ax.rotate(Math.max(-.45,Math.min(.45,Math.atan2(f.vy,Math.abs(f.vx)+25)))*.75*f.ff+wob);
-    ax.scale(-f.ff,1);drawFish(ax,f,L);ax.restore();
+    c.rotate(Math.max(-.45,Math.min(.45,Math.atan2(f.vy,Math.abs(f.vx)+25)))*.75*f.ff+wob);
+    c.scale(-f.ff,1);drawFish(f,L);c.restore();
   });
-  stepBubbles(dt);
-  drawWater(T);
+  stepParticles(dt);drawParticles();
+  /* sound level follows the motion */
+  if(AC&&gSlosh){var m=Math.abs(omega);gSlosh.gain.setTargetAtTime(fill>.03?Math.min(.34,.015+m*.05):0,AC.currentTime,.09);bpSlosh.frequency.setTargetAtTime(380+m*190,AC.currentTime,.1)}
+  /* upload + shade */
+  gl.clear(gl.COLOR_BUFFER_BIT);
+  gl.bindTexture(gl.TEXTURE_2D,tex);gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL,true);gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL,true);
+  gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,sc);
+  var m2=Math.abs(omega),ts=haveSurf?tdir:[N[1],-N[0]];
+  gl.uniform1i(U.uScene,0);gl.uniform2f(U.uRes,cv.width,cv.height);gl.uniform2f(U.uN,N[0],N[1]);gl.uniform2f(U.uTan,ts[0],ts[1]);
+  gl.uniform1f(U.uScale,SCL);gl.uniform1f(U.uT,T);gl.uniform1f(U.uC,C);
+  gl.uniform1f(U.uAmp,4+Math.min(15,m2*3.2));gl.uniform1f(U.uSlosh,Math.min(26,m2*8));
+  gl.uniform1f(U.uFoam,Math.min(1,m2*.22+foamK));gl.uniform1f(U.uAer,Math.min(1,aerK+m2*.05));
+  gl.uniform1f(U.uOn,fill>.004?1:0);
+  gl.drawArrays(gl.TRIANGLE_STRIP,0,4);
   requestAnimationFrame(frame);
 }
-/* fish drop in as the water starts rising */
-fish.forEach(function(f,i){f.y=-120-i*60});
+initAudio();
 requestAnimationFrame(frame);
+window.__w={st:function(){return {theta:theta,fill:fill,drops:drops.length,glass:glass.length,bub:bubbles.length}}};
 })();
 </script></body></html>

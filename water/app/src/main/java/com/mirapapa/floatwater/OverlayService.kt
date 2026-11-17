@@ -43,7 +43,7 @@ class OverlayService : Service(), SensorEventListener {
             handler.postDelayed({ stopSelf() }, 5200)
             return START_NOT_STICKY
         }
-        if (web == null) { goForeground(); show(i?.getFloatExtra("level", .45f) ?: .45f) }
+        if (web == null) { goForeground(); show(i?.getFloatExtra("level", .45f) ?: .45f, i?.getBooleanExtra("sound", false) == true) }
         return START_NOT_STICKY
     }
 
@@ -65,7 +65,7 @@ class OverlayService : Service(), SensorEventListener {
     }
 
     @SuppressLint("SetJavaScriptEnabled")
-    private fun show(level: Float) {
+    private fun show(level: Float, sound: Boolean) {
         val m = getSystemService(WINDOW_SERVICE) as WindowManager
         wm = m
         val lp = WindowManager.LayoutParams(
@@ -84,7 +84,8 @@ class OverlayService : Service(), SensorEventListener {
             setBackgroundColor(Color.TRANSPARENT)
             setLayerType(View.LAYER_TYPE_HARDWARE, null)
             settings.javaScriptEnabled = true
-            loadUrl("file:///android_asset/index.html?level=" + String.format(Locale.US, "%.2f", level))
+            settings.mediaPlaybackRequiresUserGesture = false
+            loadUrl("file:///android_asset/index.html?level=" + String.format(Locale.US, "%.2f", level) + if (sound) "&sound=1" else "")
         }
         web = wv
         m.addView(wv, lp)
@@ -98,9 +99,17 @@ class OverlayService : Service(), SensorEventListener {
         val now = System.currentTimeMillis()
         if (now - lastSend < 30) return
         lastSend = now
-        web?.evaluateJavascript(
-            String.format(Locale.US, "tilt(%.2f,%.2f)", e.values[0], e.values[1]), null
-        )
+        val x = e.values[0]; val y = e.values[1]
+        @Suppress("DEPRECATION")
+        val rot = wm?.defaultDisplay?.rotation ?: 0
+        val sx: Float; val sy: Float
+        when (rot) {
+            1 -> { sx = -y; sy = x }
+            2 -> { sx = -x; sy = -y }
+            3 -> { sx = y; sy = -x }
+            else -> { sx = x; sy = y }
+        }
+        web?.evaluateJavascript(String.format(Locale.US, "tilt(%.2f,%.2f)", sx, sy), null)
     }
 
     override fun onAccuracyChanged(s: Sensor?, a: Int) {}
