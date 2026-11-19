@@ -1,0 +1,305 @@
+<!DOCTYPE html><html lang="ru"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1"><title>Купюры VR</title>
+<style>
+html,body{margin:0;height:100%;overflow:hidden;background:#d9e3ec;font-family:system-ui,Roboto,sans-serif;color:#1b1d26}
+#c{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none}
+#ui{position:fixed;left:0;right:0;bottom:18px;display:flex;gap:10px;justify-content:center;flex-wrap:wrap;z-index:2}
+button{font:700 17px system-ui;padding:13px 20px;border-radius:16px;border:0;background:#1b1d26;color:#fff;box-shadow:0 6px 18px rgba(0,0,0,.25)}
+button.ar{background:#ff8a2a}
+#msg{position:fixed;left:12px;right:12px;top:10px;z-index:2;text-align:center;font:600 14px system-ui;background:rgba(255,255,255,.85);padding:7px 12px;border-radius:12px}
+</style></head><body>
+<canvas id="c"></canvas>
+<div id="msg">Мышь/палец: тащи купюру · колесо — крутить · двойной клик — копия. В очках: курок/щипок — взять, стик — крутить и приближать, A/X — копия, B/Y — удалить, нажатие стика — перевернуть.</div>
+<div id="ui"><button class="ar" id="bAR" hidden>💵 В мою комнату (AR)</button><button id="bVR" hidden>🏠 В виртуальную комнату (VR)</button></div>
+<script type="importmap">{"imports":{"three":"./three.module.min.js"}}</script>
+<script type="module">
+import * as T from 'three';
+const PI = Math.PI, $ = (id) => document.getElementById(id);
+const rnd = (a, b) => a + Math.random() * (b - a), clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
+
+/* ---------- renderer & scene ---------- */
+const cv = $('c');
+const R = new T.WebGLRenderer({ canvas: cv, antialias: true, alpha: true });
+R.setPixelRatio(Math.min(devicePixelRatio || 1, 2)); R.setSize(innerWidth, innerHeight, false);
+R.shadowMap.enabled = true; R.shadowMap.type = T.PCFSoftShadowMap;
+R.xr.enabled = true; R.xr.setReferenceSpaceType('local-floor');
+const scene = new T.Scene();
+const cam = new T.PerspectiveCamera(55, innerWidth / innerHeight, 0.02, 50);
+cam.position.set(0, 1.35, 0.35); cam.lookAt(0, 0.85, -0.55); scene.add(cam);
+addEventListener('resize', () => { cam.aspect = innerWidth / innerHeight; cam.updateProjectionMatrix(); R.setSize(innerWidth, innerHeight, false); });
+scene.add(new T.HemisphereLight(0xffffff, 0x8a7a6a, 1.8));
+const sun = new T.DirectionalLight(0xffffff, 2.2); sun.position.set(0.8, 3, 1.2); sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048); Object.assign(sun.shadow.camera, { left: -2, right: 2, top: 2, bottom: -2, near: 0.5, far: 8 }); sun.shadow.bias = -0.0003; sun.shadow.radius = 3;
+scene.add(sun, sun.target);
+const shadowFloor = new T.Mesh(new T.PlaneGeometry(10, 10), new T.ShadowMaterial({ opacity: 0.3 }));
+shadowFloor.rotation.x = -PI / 2; shadowFloor.receiveShadow = true; scene.add(shadowFloor);
+const room = new T.Group(); scene.add(room);
+let TABLE_Y = 0.75;
+{
+  const floor = new T.Mesh(new T.CircleGeometry(8, 48), new T.MeshStandardMaterial({ color: 0xb9a083, roughness: 0.9 }));
+  floor.rotation.x = -PI / 2; floor.receiveShadow = true; room.add(floor);
+  const wall = new T.Mesh(new T.CylinderGeometry(8, 8, 4, 48, 1, true), new T.MeshStandardMaterial({ color: 0xece5da, side: T.BackSide })); wall.position.y = 2; room.add(wall);
+  const wood = new T.MeshStandardMaterial({ color: 0x7a4a2a, roughness: 0.55 });
+  const top = new T.Mesh(new T.BoxGeometry(1.4, 0.04, 0.8), new T.MeshStandardMaterial({ color: 0x2f5a3a, roughness: 0.95 }));
+  top.position.set(0, TABLE_Y - 0.02, -0.65); top.receiveShadow = top.castShadow = true; room.add(top);
+  const rim = new T.Mesh(new T.BoxGeometry(1.46, 0.05, 0.86), wood); rim.position.set(0, TABLE_Y - 0.05, -0.65); rim.castShadow = true; room.add(rim);
+  [[-0.65, -0.3], [0.65, -0.3], [-0.65, -1.0], [0.65, -1.0]].forEach(([x, z]) => { const l = new T.Mesh(new T.BoxGeometry(0.05, TABLE_Y - 0.07, 0.05), wood); l.position.set(x, (TABLE_Y - 0.07) / 2, z); l.castShadow = true; room.add(l); });
+}
+let arMode = false;
+function setMode(ar) { arMode = ar; room.visible = !ar; shadowFloor.visible = ar; scene.background = ar ? null : new T.Color(0xe4ecf3); }
+setMode(false);
+
+/* ---------- banknote artwork (stylised, original drawing; not a replica) ---------- */
+const NOTES = {
+  10:   { w: 0.150, h: 0.065, c1: '#d9b27a', c2: '#a8733e', ink: '#5b3a17', words: 'ДЕСЯТЬ РУБЛЕЙ', city: 'КРАСНОЯРСК', f: 'chapel', b: 'dam' },
+  50:   { w: 0.150, h: 0.065, c1: '#b9cfc2', c2: '#5f8f86', ink: '#21433f', words: 'ПЯТЬДЕСЯТ РУБЛЕЙ', city: 'САНКТ-ПЕТЕРБУРГ', f: 'column', b: 'exchange' },
+  100:  { w: 0.150, h: 0.065, c1: '#d8c7a6', c2: '#8a7347', ink: '#4a3a1c', words: 'СТО РУБЛЕЙ', city: 'МОСКВА', f: 'theatre', b: 'quadriga' },
+  500:  { w: 0.150, h: 0.069, c1: '#cdbfe0', c2: '#7c62a8', ink: '#3b2a5a', words: 'ПЯТЬСОТ РУБЛЕЙ', city: 'АРХАНГЕЛЬСК', f: 'ship', b: 'monastery' },
+  1000: { w: 0.157, h: 0.069, c1: '#b8d6d0', c2: '#3f8a86', ink: '#1d4a48', words: 'ОДНА ТЫСЯЧА РУБЛЕЙ', city: 'ЯРОСЛАВЛЬ', f: 'monument', b: 'church' },
+  5000: { w: 0.157, h: 0.069, c1: '#f0c7a8', c2: '#c8613a', ink: '#6a2a12', words: 'ПЯТЬ ТЫСЯЧ РУБЛЕЙ', city: 'ХАБАРОВСК', f: 'monument', b: 'bridge' },
+};
+function landmark(g, kind, x, y, s, col) { // x,y = base centre; s = scale (px)
+  g.save(); g.translate(x, y); g.scale(s, s); g.fillStyle = col; g.strokeStyle = col; g.lineWidth = 0.02;
+  const rect = (a, b, w, h) => g.fillRect(a, b, w, h);
+  if (kind === 'chapel') { rect(-0.25, -0.6, 0.5, 0.6); g.beginPath(); g.moveTo(-0.32, -0.6); g.lineTo(0, -1.25); g.lineTo(0.32, -0.6); g.fill(); rect(-0.02, -1.5, 0.04, 0.28); rect(-0.1, -1.42, 0.2, 0.03);
+    g.globalAlpha = 0.5; for (let i = -3; i <= 3; i++) { g.beginPath(); g.arc(i * 0.55 + 0.9, 0, 0.25, PI, 0); g.stroke(); } rect(-0.8, -0.27, 3.2, 0.04); }
+  if (kind === 'dam') { g.beginPath(); g.moveTo(-1.6, 0); g.lineTo(-1.4, -0.7); g.lineTo(1.4, -0.7); g.lineTo(1.6, 0); g.fill(); g.globalCompositeOperation = 'destination-out'; for (let i = -6; i <= 6; i++) rect(i * 0.2 - 0.04, -0.6, 0.08, 0.5); g.globalCompositeOperation = 'source-over'; }
+  if (kind === 'column') { rect(-0.12, -1.3, 0.24, 1.3); rect(-0.3, -0.12, 0.6, 0.12); rect(-0.22, -1.38, 0.44, 0.1); for (let i = 0; i < 4; i++) { rect(-0.24, -1.1 + i * 0.25, 0.08, 0.08); rect(0.16, -1.15 + i * 0.25, 0.08, 0.08); }
+    g.beginPath(); g.arc(0, -1.47, 0.09, 0, 7); g.fill(); g.globalAlpha = 0.5; rect(0.7, -0.5, 1.4, 0.5); rect(1.35, -1.4, 0.06, 0.9); g.beginPath(); g.moveTo(1.3, -0.5); g.lineTo(1.38, -1.0); g.lineTo(1.46, -0.5); g.fill(); }
+  if (kind === 'exchange' || kind === 'theatre') { rect(-1.0, -0.12, 2.0, 0.12); for (let i = 0; i < 8; i++) rect(-0.9 + i * 0.255, -0.85, 0.09, 0.75); rect(-1.05, -1.0, 2.1, 0.15); g.beginPath(); g.moveTo(-1.05, -1.0); g.lineTo(0, -1.45); g.lineTo(1.05, -1.0); g.fill();
+    if (kind === 'theatre') { rect(-0.18, -1.75, 0.36, 0.3); g.beginPath(); g.arc(0, -1.8, 0.1, 0, 7); g.fill(); } }
+  if (kind === 'quadriga') { for (let i = 0; i < 4; i++) { const ox = -0.75 + i * 0.4; g.beginPath(); g.ellipse(ox, -0.55, 0.22, 0.11, -0.2, 0, 7); g.fill(); rect(ox - 0.15, -0.5, 0.04, 0.4); rect(ox + 0.12, -0.5, 0.04, 0.4); g.beginPath(); g.moveTo(ox + 0.15, -0.6); g.lineTo(ox + 0.32, -0.95); g.lineTo(ox + 0.36, -0.8); g.fill(); }
+    g.beginPath(); g.arc(0.8, -0.45, 0.25, 0, 7); g.fill(); rect(0.75, -1.3, 0.1, 0.6); }
+  if (kind === 'ship') { g.beginPath(); g.moveTo(-0.9, -0.35); g.lineTo(0.9, -0.35); g.lineTo(0.7, 0); g.lineTo(-0.7, 0); g.fill(); rect(-0.03, -1.6, 0.05, 1.25); rect(0.47, -1.3, 0.04, 0.95);
+    g.globalAlpha = 0.75; [[-0.5, -1.5, 0.45, 0.45], [-0.45, -0.95, 0.4, 0.5], [0.15, -1.25, 0.35, 0.4], [0.18, -0.8, 0.3, 0.38]].forEach(([a, b, w, h]) => { g.beginPath(); g.moveTo(a, b); g.quadraticCurveTo(a + w * 0.7, b + h * 0.5, a, b + h); g.lineTo(a + w, b + h); g.quadraticCurveTo(a + w * 1.2, b + h * 0.5, a + w, b); g.fill(); }); }
+  if (kind === 'monastery') { rect(-1.3, -0.5, 2.6, 0.5); for (let i = -1; i <= 1; i++) { rect(i * 0.8 - 0.15, -1.0, 0.3, 0.5); g.beginPath(); g.moveTo(i * 0.8 - 0.2, -1.0); g.lineTo(i * 0.8, -1.4 - (i ? 0 : 0.2)); g.lineTo(i * 0.8 + 0.2, -1.0); g.fill(); } }
+  if (kind === 'monument') { rect(-0.35, -0.5, 0.7, 0.5); rect(-0.25, -0.62, 0.5, 0.12); rect(-0.12, -1.25, 0.24, 0.63); g.beginPath(); g.arc(0, -1.36, 0.11, 0, 7); g.fill(); rect(0.1, -1.2, 0.3, 0.06);
+    g.globalAlpha = 0.5; g.beginPath(); g.arc(1.3, -0.2, 0.45, PI, 0); g.fill(); rect(1.24, -1.0, 0.12, 0.4); g.beginPath(); g.arc(1.3, -1.05, 0.12, PI, 0); g.fill(); }
+  if (kind === 'church') { rect(-0.7, -0.75, 1.4, 0.75); for (let i = -2; i <= 2; i++) { const hx = i * 0.3, hh = i === 0 ? 1.4 : 1.1; rect(hx - 0.07, -hh, 0.14, hh - 0.75); g.beginPath(); g.ellipse(hx, -hh - 0.05, 0.1, 0.13, 0, 0, 7); g.fill(); rect(hx - 0.01, -hh - 0.35, 0.02, 0.2); }
+    rect(0.9, -1.6, 0.25, 1.6); g.beginPath(); g.moveTo(0.85, -1.6); g.lineTo(1.025, -2.0); g.lineTo(1.2, -1.6); g.fill(); }
+  if (kind === 'bridge') { rect(-1.8, -0.75, 3.6, 0.06); for (let i = 0; i < 6; i++) { const bx = -1.5 + i * 0.6; g.beginPath(); g.arc(bx, -0.72, 0.3, PI, 0); g.lineWidth = 0.05; g.stroke(); rect(bx - 0.03, -0.72, 0.06, 0.72); } }
+  g.restore();
+}
+function guilloche(g, w, h, col, seed) {
+  g.save(); g.strokeStyle = col; g.lineWidth = 1.2; g.globalAlpha = 0.35;
+  for (let k = 0; k < 18; k++) { g.beginPath(); for (let x = 0; x <= w; x += 6) { const y = h * 0.5 + Math.sin(x / (40 + k * 3) + seed + k) * (h * 0.32) * Math.sin(x / 260 + k * 0.4); x ? g.lineTo(x, y) : g.moveTo(x, y); } g.stroke(); }
+  g.restore();
+}
+function rrect(g, x, y, w, h, r) { g.beginPath(); g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r); g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath(); }
+function drawSide(den, back) {
+  const n = NOTES[den], W = 1600, H = Math.round((W * n.h) / n.w), c = document.createElement('canvas'); c.width = W; c.height = H; const g = c.getContext('2d');
+  const gr = g.createLinearGradient(0, 0, W, H); gr.addColorStop(0, n.c1); gr.addColorStop(0.55, '#f6efe2'); gr.addColorStop(1, n.c1); g.fillStyle = gr; g.fillRect(0, 0, W, H);
+  // paper fibres
+  for (let i = 0; i < 900; i++) { g.fillStyle = `rgba(0,0,0,${Math.random() * 0.05})`; g.fillRect(Math.random() * W, Math.random() * H, rnd(4, 16), 1); }
+  guilloche(g, W, H, n.c2, back ? 2 : 0);
+  // frame
+  g.strokeStyle = n.c2; g.lineWidth = 10; g.globalAlpha = 0.8; rrect(g, 22, 22, W - 44, H - 44, 18); g.stroke(); g.lineWidth = 3; rrect(g, 40, 40, W - 80, H - 80, 14); g.stroke(); g.globalAlpha = 1;
+  // light oval area (left on front, right on back)
+  const ox = back ? W - 300 : 300; const og = g.createRadialGradient(ox, H / 2, 10, ox, H / 2, 210); og.addColorStop(0, 'rgba(255,255,255,.85)'); og.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = og; g.beginPath(); g.ellipse(ox, H / 2, 190, H * 0.38, 0, 0, 7); g.fill();
+  g.fillStyle = n.c2; g.globalAlpha = 0.35; g.font = `900 ${H * 0.34}px Georgia,serif`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(String(den), ox, H / 2 + 8); g.globalAlpha = 1;
+  // landmark
+  landmark(g, back ? n.b : n.f, back ? W * 0.43 : W * 0.6, H * 0.84, H * 0.42, n.ink);
+  // denomination numerals
+  g.fillStyle = n.ink; g.textBaseline = 'alphabetic';
+  g.font = `900 ${H * 0.2}px Georgia,serif`; g.textAlign = back ? 'left' : 'right'; g.fillText(String(den), back ? 70 : W - 70, H * 0.26);
+  g.font = `900 ${H * 0.13}px Georgia,serif`; g.textAlign = back ? 'right' : 'left'; g.fillText(String(den), back ? W - 80 : 80, H - 70);
+  // words & city
+  g.textAlign = 'center'; g.font = `700 ${H * 0.075}px Georgia,serif`; g.fillText(n.words, back ? W * 0.43 : W * 0.6, H * 0.18);
+  g.font = `600 ${H * 0.055}px system-ui,Roboto,sans-serif`; g.fillText(n.city, back ? W * 0.43 : W * 0.6, H * 0.28);
+  // play-money band
+  g.save(); g.translate(W / 2, H / 2); g.rotate(back ? 0.12 : -0.12);
+  g.fillStyle = 'rgba(200,20,20,.78)'; g.fillRect(-W * 0.6, -H * 0.055, W * 1.2, H * 0.11);
+  g.fillStyle = '#fff'; g.font = `800 ${H * 0.058}px system-ui,Roboto,sans-serif`; g.textBaseline = 'middle';
+  g.fillText('ИГРОВОЙ БИЛЕТ · НЕ ЯВЛЯЕТСЯ ПЛАТЁЖНЫМ СРЕДСТВОМ · ИГРОВОЙ БИЛЕТ', 0, 2); g.restore();
+  g.fillStyle = 'rgba(200,20,20,.85)'; g.font = `800 ${H * 0.05}px system-ui`; g.textAlign = 'left'; g.textBaseline = 'alphabetic'; g.fillText('VR-РЕКВИЗИТ', back ? W * 0.6 : 80, back ? H - 70 : H * 0.36);
+  const t = new T.CanvasTexture(c); t.colorSpace = T.SRGBColorSpace; t.anisotropy = R.capabilities.getMaxAnisotropy(); return t;
+}
+const TEX = {}, GEO = {};
+function noteMaterials(den) {
+  if (!TEX[den]) {
+    TEX[den] = [drawSide(den, false), drawSide(den, true)];
+    const n = NOTES[den], geo = new T.PlaneGeometry(n.w, n.h, 30, 4), p = geo.attributes.position;
+    for (let i = 0; i < p.count; i++) { const x = p.getX(i), y = p.getY(i); p.setZ(i, Math.sin((x / n.w + 0.5) * PI) * 0.0035 + Math.sin((y / n.h + 0.5) * PI) * 0.0008); }
+    geo.computeVertexNormals(); GEO[den] = geo;
+  }
+  return TEX[den];
+}
+
+/* ---------- notes ---------- */
+const notes = [];
+let gravity = false, lastNote = null;
+function makeNote(den) {
+  const [tf, tb] = noteMaterials(den), g = new T.Group();
+  const front = new T.Mesh(GEO[den], new T.MeshStandardMaterial({ map: tf, roughness: 0.85, side: T.FrontSide }));
+  const back = new T.Mesh(GEO[den], new T.MeshStandardMaterial({ map: tb, roughness: 0.85, side: T.FrontSide }));
+  back.rotation.y = PI; back.position.z = -0.0002;
+  [front, back].forEach((m) => { m.castShadow = true; m.receiveShadow = true; m.userData.note = g; });
+  g.add(front, back); g.userData = { den, vy: 0, held: false, resting: true, spin: rnd(-1, 1) };
+  scene.add(g); notes.push(g); lastNote = g; return g;
+}
+function spawn(den, pos, quat) { const n = makeNote(den); n.position.copy(pos); if (quat) n.quaternion.copy(quat); n.userData.resting = !gravity; return n; }
+function copyNote(n, offset) {
+  const c = makeNote(n.userData.den); n.updateMatrixWorld(); n.matrixWorld.decompose(c.position, c.quaternion, c.scale);
+  if (offset) c.position.add(offset); c.userData.resting = !gravity; return c;
+}
+function removeNote(n) { if (!n) return; scene.remove(n); n.parent && n.parent.remove(n); notes.splice(notes.indexOf(n), 1); if (lastNote === n) lastNote = notes[notes.length - 1] || null; }
+function viewer() { const v = new T.Vector3(), q = new T.Quaternion(), c = R.xr.isPresenting ? R.xr.getCamera() : cam; c.getWorldPosition(v); c.getWorldQuaternion(q); const f = new T.Vector3(0, 0, -1).applyQuaternion(q); f.y = 0; f.normalize(); return { v, f }; }
+function inFront(dist, side, up) { const { v, f } = viewer(); return new T.Vector3(v.x + f.x * dist + f.z * (side || 0), (arMode ? v.y - 0.35 : TABLE_Y + 0.01) + (up || 0), v.z + f.z * dist - f.x * (side || 0)); }
+function layFlatQuat(yaw) { const q = new T.Quaternion().setFromEuler(new T.Euler(-PI / 2, 0, 0)); return new T.Quaternion().setFromAxisAngle(new T.Vector3(0, 1, 0), yaw).multiply(q); }
+function facingQuat() { const { v, f } = viewer(); const m = new T.Matrix4().lookAt(new T.Vector3(0, 0, 0), new T.Vector3(-f.x, 0.6, -f.z), new T.Vector3(0, 1, 0)); return new T.Quaternion().setFromRotationMatrix(m); }
+function spawnInFront(den) {
+  const { f } = viewer(), yaw = Math.atan2(-f.x, -f.z);
+  const p = inFront(arMode ? 0.45 : 0.8, rnd(-0.15, 0.15), arMode ? 0.05 : 0.002 + notes.length * 0.0004);
+  return spawn(den, p, arMode ? facingQuat() : layFlatQuat(yaw + rnd(-0.3, 0.3)));
+}
+function fan() {
+  const dens = [10, 50, 100, 500, 1000, 5000], { f } = viewer(), yaw = Math.atan2(-f.x, -f.z);
+  dens.forEach((d, i) => {
+    const p = inFront(arMode ? 0.5 : 0.85, (i - 2.5) * 0.05, arMode ? 0.05 + i * 0.001 : 0.002 + i * 0.0006);
+    const q = arMode ? facingQuat().multiply(new T.Quaternion().setFromAxisAngle(new T.Vector3(0, 0, 1), (2.5 - i) * 0.12)) : layFlatQuat(yaw).multiply(new T.Quaternion().setFromAxisAngle(new T.Vector3(0, 0, 1), (2.5 - i) * 0.12));
+    spawn(d, p, q);
+  });
+}
+function stack(den, count) {
+  const { f } = viewer(), yaw = Math.atan2(-f.x, -f.z), base = inFront(arMode ? 0.45 : 0.8, 0.2, arMode ? 0.0 : 0.002);
+  for (let i = 0; i < count; i++) spawn(den, base.clone().add(new T.Vector3(rnd(-0.002, 0.002), i * 0.0007, rnd(-0.002, 0.002))), layFlatQuat(yaw + rnd(-0.03, 0.03)));
+}
+
+/* ---------- floating menu ---------- */
+class Panel {
+  constructor() {
+    this.c = document.createElement('canvas'); this.c.width = 900; this.c.height = 560;
+    this.tex = new T.CanvasTexture(this.c); this.tex.colorSpace = T.SRGBColorSpace;
+    this.mesh = new T.Mesh(new T.PlaneGeometry(0.45, 0.28), new T.MeshBasicMaterial({ map: this.tex, transparent: true }));
+    this.mesh.userData.panel = this; this.hover = -1; this.btns = [];
+  }
+  draw() {
+    const g = this.c.getContext('2d'), W = 900; g.clearRect(0, 0, W, 560);
+    g.fillStyle = 'rgba(24,26,34,.93)'; rrect(g, 4, 4, W - 8, 552, 34); g.fill();
+    g.fillStyle = '#fff'; g.font = '700 40px system-ui'; g.textBaseline = 'middle'; g.fillText('💵 Купюры', 32, 52);
+    g.font = '500 24px system-ui'; g.fillStyle = 'rgba(255,255,255,.6)'; g.fillText('нажми — появится перед тобой', 260, 54);
+    const B = []; const dens = [10, 50, 100, 500, 1000, 5000], bw = 270, bh = 92;
+    dens.forEach((d, i) => B.push({ x: 30 + (i % 3) * (bw + 15), y: 100 + Math.floor(i / 3) * (bh + 14), w: bw, h: bh, l: d + ' ₽', col: NOTES[d].c2, fn: () => spawnInFront(d) }));
+    const row = 100 + 2 * (bh + 14) + 6, sw = 198;
+    [['🪭 Веер', fan], ['📚 Пачка ×10', () => stack(lastNote ? lastNote.userData.den : 1000, 10)], ['📄 Копия', () => lastNote && copyNote(lastNote, new T.Vector3(0.02, 0.002, 0.02))], ['🗑 Удалить', () => removeNote(lastNote)]]
+      .forEach(([l, fn], i) => B.push({ x: 30 + i * (sw + 12), y: row, w: sw, h: 76, l, fn, col: '#3d4256' }));
+    B.push({ x: 30, y: row + 88, w: 405, h: 66, l: gravity ? '⬇ Падают: ВКЛ' : '⬇ Падают: ВЫКЛ', fn: () => { gravity = !gravity; notes.forEach((n) => { if (!n.userData.held) n.userData.resting = !gravity; }); this.draw(); }, col: gravity ? '#2f7d4f' : '#3d4256' });
+    B.push({ x: 450, y: row + 88, w: 420, h: 66, l: '🧹 Убрать все', fn: () => notes.slice().forEach((n) => { if (!n.userData.held) removeNote(n); }), col: '#8a2f2f' });
+    this.btns = B;
+    B.forEach((b, i) => { g.fillStyle = i === this.hover ? '#ff8a2a' : b.col; rrect(g, b.x, b.y, b.w, b.h, 18); g.fill(); g.fillStyle = '#fff'; g.textAlign = 'center'; g.font = (i < 6 ? '800 44px Georgia,serif' : '600 30px system-ui'); g.fillText(b.l, b.x + b.w / 2, b.y + b.h / 2 + 2); g.textAlign = 'left'; });
+    this.tex.needsUpdate = true;
+  }
+  hit(uv) { const x = uv.x * 900, y = (1 - uv.y) * 560; return this.btns.findIndex((b) => x >= b.x && x <= b.x + b.w && y >= b.y && y <= b.y + b.h); }
+}
+const panel = new Panel(); panel.draw(); scene.add(panel.mesh);
+function placePanel() {
+  const { v, f } = viewer(); const sx = f.z, sz = -f.x;
+  panel.mesh.position.set(v.x + f.x * 0.55 - sx * 0.38, v.y - 0.25, v.z + f.z * 0.55 - sz * 0.38);
+  panel.mesh.lookAt(v.x, v.y - 0.1, v.z);
+}
+placePanel();
+
+/* ---------- XR controllers ---------- */
+const ray = new T.Raycaster(), ctrls = [];
+function pick(origin, dir) {
+  ray.set(origin, dir); ray.far = 6;
+  const meshes = [panel.mesh]; notes.forEach((n) => { if (!n.userData.held) n.children.forEach((m) => meshes.push(m)); });
+  const h = ray.intersectObjects(meshes, false)[0]; if (!h) return null;
+  if (h.object.userData.panel) return { panel: true, uv: h.uv, d: h.distance };
+  return { note: h.object.userData.note, d: h.distance, point: h.point };
+}
+for (let i = 0; i < 2; i++) {
+  const c = R.xr.getController(i); scene.add(c);
+  const line = new T.Line(new T.BufferGeometry().setFromPoints([new T.Vector3(), new T.Vector3(0, 0, -1)]), new T.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.55 }));
+  line.scale.z = 2; c.add(line);
+  const dot = new T.Mesh(new T.SphereGeometry(0.006, 10, 8), new T.MeshBasicMaterial({ color: 0xff8a2a })); dot.visible = false; scene.add(dot);
+  const st = { c, line, dot, src: null, held: null, prev: [] };
+  c.addEventListener('connected', (e) => { st.src = e.data; });
+  c.addEventListener('disconnected', () => { st.src = null; drop(st); });
+  const rayFrom = () => { const o = new T.Vector3(), q = new T.Quaternion(); c.getWorldPosition(o); c.getWorldQuaternion(q); return [o, new T.Vector3(0, 0, -1).applyQuaternion(q)]; };
+  const start = () => {
+    if (st.held) return; const [o, d] = rayFrom(), h = pick(o, d); if (!h) return;
+    if (h.panel) { const k = panel.hit(h.uv); if (k >= 0) panel.btns[k].fn(); return; }
+    grab(st, h.note);
+  };
+  c.addEventListener('selectstart', start); c.addEventListener('squeezestart', start);
+  c.addEventListener('selectend', () => drop(st)); c.addEventListener('squeezeend', () => { if (st.src && st.src.gamepad && st.src.gamepad.buttons[0] && st.src.gamepad.buttons[0].pressed) return; drop(st); });
+  st.rayFrom = rayFrom; ctrls.push(st);
+}
+function grab(st, n) { ctrls.forEach((o) => { if (o.held === n) o.held = null; }); n.userData.held = true; n.userData.resting = true; st.c.attach(n); st.held = n; lastNote = n; pulse(st, 0.3, 40); }
+function drop(st) { const n = st.held; if (!n) return; scene.attach(n); n.userData.held = false; n.userData.vy = 0; n.userData.resting = !gravity; st.held = null; }
+function pulse(st, v, ms) { try { const a = st.src && st.src.gamepad && st.src.gamepad.hapticActuators && st.src.gamepad.hapticActuators[0]; if (a) a.pulse(v, ms); } catch (e) {} }
+function pollControllers(dt) {
+  ctrls.forEach((st) => {
+    const [o, d] = st.rayFrom(), h = st.held ? null : pick(o, d);
+    st.line.scale.z = h ? h.d : 2; st.dot.visible = !!h; if (h) st.dot.position.copy(o).addScaledVector(d, h.d);
+    if (h && h.panel) { const k = panel.hit(h.uv); if (k !== panel.hover) { panel.hover = k; panel.draw(); } }
+    const gp = st.src && st.src.gamepad; if (!gp) return;
+    const ax = gp.axes, bt = gp.buttons.map((b) => b && b.pressed), was = st.prev; st.prev = bt;
+    const sx = ax[2] || 0, sy = ax[3] || 0;
+    if (st.held) {
+      const n = st.held;
+      if (Math.abs(sx) > 0.15) n.rotateOnWorldAxis(d, -sx * dt * 3);
+      if (Math.abs(sy) > 0.15) { const lp = n.position.clone(); const len = clamp(lp.length() + sy * dt * 0.8, 0.05, 4); if (lp.lengthSq() > 1e-6) n.position.copy(lp.normalize().multiplyScalar(len)); }
+      if (bt[3] && !was[3]) n.rotateY(PI);
+      if (bt[4] && !was[4]) { copyNote(n); pulse(st, 0.5, 30); }
+      if (bt[5] && !was[5]) { st.held = null; removeNote(n); }
+    } else if (h && h.note) {
+      if (bt[4] && !was[4]) copyNote(h.note, new T.Vector3(0.015, 0.002, 0.015));
+      if (bt[5] && !was[5]) removeNote(h.note);
+    }
+  });
+  if (!ctrls.some((s) => s.dot.visible && s.held === null && pick(...s.rayFrom())?.panel) && panel.hover !== -1) { panel.hover = -1; panel.draw(); }
+}
+
+/* ---------- gravity / flutter ---------- */
+function floorY() { return arMode ? 0 : null; }
+function physics(dt) {
+  notes.forEach((n) => {
+    const u = n.userData; if (u.held || u.resting) return;
+    u.vy = Math.max(u.vy - 3 * dt, -0.9); n.position.y += u.vy * dt;
+    n.position.x += Math.sin(performance.now() / 300 + u.spin * 5) * 0.08 * dt;
+    // ground: table top (VR) or floor
+    const onTable = !arMode && Math.abs(n.position.x) < 0.7 && n.position.z < -0.25 && n.position.z > -1.05 && n.position.y > TABLE_Y - 0.05;
+    const gy = onTable ? TABLE_Y + 0.001 + notes.indexOf(n) * 0.0003 : 0.002 + notes.indexOf(n) * 0.0003;
+    // tilt toward flat while falling
+    const target = layFlatQuat(new T.Euler().setFromQuaternion(n.quaternion, 'YXZ').y);
+    n.quaternion.slerp(target, Math.min(1, dt * 2.5));
+    if (n.position.y <= gy) { n.position.y = gy; u.vy = 0; u.resting = true; n.quaternion.copy(target); }
+  });
+}
+
+/* ---------- desktop / phone: mouse & touch ---------- */
+let drag = null; const plane = new T.Plane(), hitP = new T.Vector3(), off = new T.Vector3();
+function ndc(e) { return new T.Vector2((e.clientX / innerWidth) * 2 - 1, -(e.clientY / innerHeight) * 2 + 1); }
+cv.addEventListener('pointerdown', (e) => {
+  ray.setFromCamera(ndc(e), cam); const h = pick(ray.ray.origin.clone(), ray.ray.direction.clone()); if (!h) return;
+  if (h.panel) { const k = panel.hit(h.uv); if (k >= 0) panel.btns[k].fn(); return; }
+  drag = h.note; lastNote = drag; drag.userData.held = true;
+  plane.setFromNormalAndCoplanarPoint(new T.Vector3(0, 1, 0), h.point); off.copy(drag.position).sub(h.point); cv.setPointerCapture(e.pointerId);
+});
+cv.addEventListener('pointermove', (e) => { if (!drag) return; ray.setFromCamera(ndc(e), cam); if (ray.ray.intersectPlane(plane, hitP)) drag.position.copy(hitP).add(off); });
+cv.addEventListener('pointerup', () => { if (drag) { drag.userData.held = false; drag.userData.resting = !gravity; } drag = null; });
+cv.addEventListener('wheel', (e) => { const n = drag || lastNote; if (n) n.rotateOnWorldAxis(new T.Vector3(0, 1, 0), e.deltaY * 0.003); e.preventDefault(); }, { passive: false });
+cv.addEventListener('dblclick', (e) => { ray.setFromCamera(ndc(e), cam); const h = pick(ray.ray.origin.clone(), ray.ray.direction.clone()); if (h && h.note) copyNote(h.note, new T.Vector3(0.02, 0.0015, 0.02)); });
+
+/* ---------- XR session ---------- */
+async function enter(mode) {
+  try {
+    const s = await navigator.xr.requestSession(mode, { requiredFeatures: ['local-floor'], optionalFeatures: ['hand-tracking'] });
+    setMode(mode === 'immersive-ar'); await R.xr.setSession(s);
+    setTimeout(() => { placePanel(); if (!notes.length) fan(); }, 600);
+    s.addEventListener('end', () => { setMode(false); cam.position.set(0, 1.35, 0.35); cam.lookAt(0, 0.85, -0.55); placePanel(); });
+  } catch (e) { $('msg').textContent = 'Не удалось запустить ' + mode + ': ' + e.message; }
+}
+if (navigator.xr) {
+  navigator.xr.isSessionSupported('immersive-ar').then((ok) => { $('bAR').hidden = !ok; $('bAR').onclick = () => enter('immersive-ar'); }).catch(() => {});
+  navigator.xr.isSessionSupported('immersive-vr').then((ok) => { $('bVR').hidden = !ok; $('bVR').onclick = () => enter('immersive-vr'); }).catch(() => {});
+}
+
+/* ---------- start ---------- */
+fan();
+const clock = new T.Clock();
+R.setAnimationLoop(() => { const dt = Math.min(0.05, clock.getDelta()); if (R.xr.isPresenting) pollControllers(dt); physics(dt); R.render(scene, cam); });
+window.__m = { notes, spawnInFront, fan, stack, copyNote, cam, panel, scene, T };
+</script></body></html>
