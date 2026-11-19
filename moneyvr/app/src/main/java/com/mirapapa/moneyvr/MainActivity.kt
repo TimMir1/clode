@@ -15,11 +15,7 @@ class MainActivity : Activity() {
         super.onCreate(b)
         val pad = (28 * resources.displayMetrics.density).toInt()
         val info = TextView(this).apply {
-            text = "Игровые 3D-купюры 10–5000 ₽.
-
-Откроется браузер. Нажми «В мою комнату (AR)» или «В виртуальную комнату (VR)».
-
-Курок — взять, стик — крутить, A/X — копия, B/Y — удалить."
+            text = "Игровые 3D-купюры 10–5000 ₽.\n\nОткроется браузер. Нажми «В мою комнату (AR)» или «В виртуальную комнату (VR)».\n\nКурок — взять, стик — крутить, A/X — копия, B/Y — удалить."
             textSize = 20f
         }
         val open = Button(this).apply { text = "💵 Открыть купюры"; textSize = 22f; setOnClickListener { launch() } }
