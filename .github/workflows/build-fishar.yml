@@ -1,0 +1,29 @@
+name: Build Fish AR APK
+on:
+  workflow_dispatch:
+  push:
+    paths: ['fishar/**', '.github/workflows/build-fishar.yml']
+permissions:
+  contents: write
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: 17 }
+      - uses: gradle/actions/setup-gradle@v4
+        with: { gradle-version: 8.7 }
+      - run: gradle assembleDebug --no-daemon
+        working-directory: fishar
+      - uses: actions/upload-artifact@v4
+        with:
+          name: fishar-apk
+          path: fishar/app/build/outputs/apk/debug/app-debug.apk
+      - name: Publish public release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cp fishar/app/build/outputs/apk/debug/app-debug.apk Ryby-AR.apk
+          gh release delete fishar-latest --yes --cleanup-tag || true
+          gh release create fishar-latest Ryby-AR.apk --title "Рыбы AR (APK)" --notes "Скачай Ryby-AR.apk и установи на телефон или очки Quest." --latest=false
