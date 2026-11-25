@@ -1,0 +1,24 @@
+name: Fetch MediaPipe models for fish-ar
+on:
+  push:
+    paths: ['.github/workflows/fetch-fish-models.yml']
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download models
+        run: |
+          mkdir -p fish-ar/models
+          curl -fsSL -o fish-ar/models/hand_landmarker.task https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task
+          curl -fsSL -o fish-ar/models/selfie_segmenter.tflite https://storage.googleapis.com/mediapipe-models/image_segmenter/selfie_segmenter/float16/latest/selfie_segmenter.tflite
+          curl -fsSL -o fish-ar/models/selfie_multiclass.tflite https://storage.googleapis.com/mediapipe-models/image_segmenter/selfie_multiclass_256x256/float32/latest/selfie_multiclass_256x256.tflite || true
+          ls -la fish-ar/models
+      - name: Commit
+        run: |
+          git config user.name "github-actions"; git config user.email "actions@github.com"
+          git add fish-ar/models; git commit -m "fish-ar: MediaPipe models" || exit 0
+          git pull --rebase; git push
