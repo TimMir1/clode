@@ -15,11 +15,7 @@ class MainActivity : Activity() {
         super.onCreate(b)
         val pad = (28 * resources.displayMetrics.density).toInt()
         val info = TextView(this).apply {
-            text = "Стая сардин вокруг тебя.
-
-Телефон: «Камера» — рыбы плавают вокруг тебя, заходят за спину и разбегаются от рук. ⏺ — запись ролика.
-
-Quest: «Рыбы в моей комнате (AR)» — стая в комнате, разбегается от рук и контроллеров."
+            text = "Стая сардин вокруг тебя.\n\nТелефон: «Камера» — рыбы плавают вокруг тебя, заходят за спину и разбегаются от рук. ⏺ — запись ролика.\n\nQuest: «Рыбы в моей комнате (AR)» — стая в комнате, разбегается от рук и контроллеров."
             textSize = 20f
         }
         val open = Button(this).apply { text = "🐟 Открыть рыб"; textSize = 22f; setOnClickListener { launch() } }
