@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <queries><intent><action android:name="android.intent.action.VIEW"/><data android:scheme="https"/></intent></queries>
-    <application android:label="Рыбы AR" android:allowBackup="false"
+    <application android:label="AR-студия" android:allowBackup="false"
         android:theme="@android:style/Theme.DeviceDefault.NoActionBar">
         <activity android:name=".MainActivity" android:exported="true">
             <intent-filter>

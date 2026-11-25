@@ -15,10 +15,14 @@ class MainActivity : Activity() {
         super.onCreate(b)
         val pad = (28 * resources.displayMetrics.density).toInt()
         val info = TextView(this).apply {
-            text = "Стая сардин вокруг тебя.\n\nТелефон: «Камера» — рыбы плавают вокруг тебя, заходят за спину и разбегаются от рук. ⏺ — запись ролика.\n\nQuest: «Рыбы в моей комнате (AR)» — стая в комнате, разбегается от рук и контроллеров."
+            text = "AR-студия: рыбы, золотые рыбки, денежный дождь, бабочки.
+
+Телефон: «Камера» — вырезает тебя из кадра, эффекты вокруг тебя, ⏺ — вертикальный ролик 9:16 со звуком, сразу «Поделиться».
+
+Quest: «В моей комнате (AR)» — эффекты вокруг тебя, реагируют на руки."
             textSize = 20f
         }
-        val open = Button(this).apply { text = "🐟 Открыть рыб"; textSize = 22f; setOnClickListener { launch() } }
+        val open = Button(this).apply { text = "🎬 Открыть студию"; textSize = 22f; setOnClickListener { launch() } }
         setContentView(LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL; setPadding(pad, pad, pad, pad); addView(info); addView(open)
         })

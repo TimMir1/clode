@@ -1,26 +1,51 @@
 <!DOCTYPE html><html lang="ru"><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><title>Рыбы AR</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><title>AR-студия: рыбы, деньги, бабочки</title>
 <style>
-html,body{margin:0;height:100%;overflow:hidden;background:#05080c;font-family:system-ui,Roboto,sans-serif;color:#fff}
+html,body{margin:0;height:100%;overflow:hidden;background:#000;font-family:system-ui,Roboto,sans-serif;color:#fff;-webkit-user-select:none;user-select:none}
 #c{position:fixed;inset:0;width:100%;height:100%;display:block}
+#c.studio{inset:auto;left:50%;top:50%;transform:translate(-50%,-50%);width:min(100vw,56.25vh);height:auto;aspect-ratio:9/16}
 video{display:none}
-#start{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;z-index:3;background:radial-gradient(circle at 50% 40%,rgba(20,40,60,.55),rgba(0,0,0,.75));padding:20px;text-align:center}
-#start h1{margin:0 0 4px;font:800 30px system-ui}#start p{margin:0 0 10px;opacity:.8;max-width:420px;line-height:1.4}
-button{font:700 18px system-ui;padding:15px 24px;border-radius:18px;border:0;background:#1e88e5;color:#fff;box-shadow:0 6px 20px rgba(0,0,0,.4);min-width:260px}
-button.ar{background:#ff8a2a}
-#bar{position:fixed;left:0;right:0;bottom:calc(16px + env(safe-area-inset-bottom));display:none;gap:10px;justify-content:center;z-index:2}
-#bar button{min-width:0;padding:12px 16px;font-size:16px;background:rgba(20,24,30,.7);backdrop-filter:blur(6px)}
-#bar button.rec{background:#d32f2f}
-#msg{position:fixed;left:10px;right:10px;top:calc(10px + env(safe-area-inset-top));text-align:center;z-index:2;font:600 14px system-ui;text-shadow:0 1px 4px #000;pointer-events:none}
+#start{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;z-index:5;background:radial-gradient(circle at 50% 35%,rgba(20,40,60,.5),rgba(0,0,0,.8));padding:20px;text-align:center}
+#start h1{margin:0;font:800 28px system-ui}#start p{margin:0 0 6px;opacity:.8;max-width:420px;line-height:1.4;font-size:15px}
+.big{font:700 18px system-ui;padding:15px 24px;border-radius:18px;border:0;background:#1e88e5;color:#fff;box-shadow:0 6px 20px rgba(0,0,0,.4);min-width:270px}
+.big.ar{background:#ff8a2a}
+.chips{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
+.chip{font:600 15px system-ui;padding:9px 13px;border-radius:999px;border:1.5px solid rgba(255,255,255,.35);background:rgba(20,24,30,.55);color:#fff;backdrop-filter:blur(6px)}
+.chip.on{background:#fff;color:#111;border-color:#fff}
+#presets{position:fixed;left:0;right:0;top:calc(10px + env(safe-area-inset-top));z-index:3;display:none}
+#bar{position:fixed;left:0;right:0;bottom:calc(14px + env(safe-area-inset-bottom));display:none;gap:10px;justify-content:center;align-items:center;z-index:3}
+.ib{width:52px;height:52px;border-radius:50%;border:0;background:rgba(20,24,30,.6);color:#fff;font:700 14px system-ui;backdrop-filter:blur(6px);display:flex;align-items:center;justify-content:center;flex-direction:column;line-height:1.05}
+.ib small{font-size:10px;opacity:.85}.ib.on{background:#fff;color:#111}
+#bRec{width:74px;height:74px;border-radius:50%;border:5px solid #fff;background:#e53935;box-shadow:0 0 0 3px rgba(0,0,0,.25)}
+#bRec.rec{border-radius:22px;width:62px;height:62px;animation:pl 1s infinite}
+@keyframes pl{50%{opacity:.6}}
+#msg{position:fixed;left:10px;right:10px;top:calc(60px + env(safe-area-inset-top));text-align:center;z-index:3;font:600 14px system-ui;text-shadow:0 1px 4px #000;pointer-events:none}
+#cd{position:fixed;inset:0;display:none;align-items:center;justify-content:center;z-index:6;font:900 160px system-ui;text-shadow:0 6px 30px rgba(0,0,0,.6);pointer-events:none}
+#timer{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(100px + env(safe-area-inset-bottom));z-index:3;font:700 15px system-ui;background:#e53935;padding:4px 10px;border-radius:10px;display:none}
+#sheet{position:fixed;inset:0;z-index:7;display:none;flex-direction:column;align-items:center;justify-content:center;gap:12px;background:rgba(0,0,0,.85);padding:16px}
+#sheet video{display:block;max-height:62vh;max-width:90vw;border-radius:14px;background:#111}
+#sheet .row{display:flex;gap:10px;flex-wrap:wrap;justify-content:center}
+#sheet button{font:700 16px system-ui;padding:13px 18px;border-radius:14px;border:0;background:#1e88e5;color:#fff}
+#sheet button.g{background:#2f7d4f}#sheet button.x{background:#444}
 </style></head><body>
 <canvas id="c"></canvas><video id="v" playsinline muted></video>
 <div id="msg"></div>
-<div id="start"><h1>🐟 Рыбы AR</h1><p>Стая сардин плавает вокруг тебя, заходит за спину и разбегается от твоих рук.</p>
-<button id="bCam">📱 Камера (телефон)</button><button class="ar" id="bAR" hidden>🥽 Рыбы в моей комнате (AR)</button><button id="bVR" hidden>🌊 Под водой (VR)</button>
-<p style="font-size:13px;opacity:.6;margin-top:10px">На телефоне: встань в кадр целиком по пояс, помаши руками. Кнопка ⏺ записывает ролик.</p></div>
-<div id="bar"><button id="bFlip">🔄 Камера</button><button id="bRec">⏺ Запись</button><button id="bMore">🐟 Больше</button></div>
-
-
+<div id="start"><h1>🎬 AR-студия</h1><p>Рыбы, деньги и бабочки вокруг тебя. Вырезает тебя из кадра, реагирует на руки, пишет вертикальный ролик для Reels.</p>
+<div class="chips" id="pick"></div>
+<button class="big" id="bCam">📱 Камера (телефон)</button><button class="big ar" id="bAR" hidden>🥽 В моей комнате (AR)</button><button class="big" id="bVR" hidden>🌊 Под водой (VR)</button>
+<p style="font-size:13px;opacity:.6">Встань в кадр по пояс. Рыбы разбегаются от рук, деньги отскакивают, бабочки садятся на пальцы.</p></div>
+<div id="presets" class="chips"></div>
+<div id="bar">
+  <button class="ib" id="bFlip">🔄<small>камера</small></button>
+  <button class="ib" id="bDur">⏱<small>∞</small></button>
+  <button id="bRec" title="Запись"></button>
+  <button class="ib" id="bCut">✂<small>быстро</small></button>
+  <button class="ib on" id="bMic">🎙<small>звук</small></button>
+  <button class="ib" id="bHD">720<small>HD</small></button>
+</div>
+<div id="timer"></div><div id="cd"></div>
+<div id="sheet"><video id="pv" controls playsinline loop></video>
+  <div class="row"><button id="bShare">📤 Поделиться</button><button class="g" id="bSave">💾 Сохранить</button><button class="x" id="bClose">✕ Ещё дубль</button></div></div>
 <script type="importmap">{"imports":{"three":"./three.module.min.js"}}</script>
 <script type="module" src="app.js"></script>
 </body></html>
