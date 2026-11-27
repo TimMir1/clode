@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Рисовалка в воздухе — Quest</title>
+<style>
+  html,body{margin:0;height:100%;background:#14161d;color:#eef;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;overflow:hidden}
+  canvas{display:block}
+  #ui{position:fixed;top:16px;left:16px;max-width:440px;background:rgba(20,22,30,.88);border:1px solid #2c3040;border-radius:18px;padding:18px 20px;backdrop-filter:blur(8px)}
+  h1{font-size:22px;margin:0 0 4px}
+  .sub{opacity:.7;font-size:14px;margin-bottom:14px}
+  button{display:block;width:100%;margin:8px 0;padding:14px 16px;font-size:17px;border:0;border-radius:12px;cursor:pointer;background:#2b3145;color:#fff}
+  button.main{background:linear-gradient(135deg,#6a5cff,#2fb7ff);font-weight:600}
+  button:disabled{opacity:.4;cursor:default}
+  .row{display:flex;gap:8px}.row button{flex:1}
+  details{margin-top:10px;font-size:14px;line-height:1.5}
+  summary{cursor:pointer;opacity:.85}
+  ul{padding-left:18px;margin:6px 0}
+  #status{font-size:13px;opacity:.7;margin-top:8px}
+</style>
+<script type="importmap">
+{"imports":{
+  "three":"./three.module.min.js",
+  "three/addons/":"./jsm/"
+}}
+</script>
+</head>
+<body>
+<div id="ui">
+  <h1>🎨 Рисовалка в воздухе</h1>
+  <div class="sub">Рисуй контроллерами прямо в своей комнате</div>
+  <button id="btnAR" class="main" disabled>🥽 Рисовать в комнате (AR)</button>
+  <button id="btnVR" disabled>🌌 Рисовать в VR (тёмный фон)</button>
+  <div class="row">
+    <button id="btnGLB">💾 Скачать .glb</button>
+    <button id="btnClear">🗑 Очистить</button>
+  </div>
+  <details open>
+    <summary>Управление</summary>
+    <ul>
+      <li><b>Курок</b> (любая рука) — рисовать, чем сильнее жмёшь, тем толще</li>
+      <li><b>Палитра</b> висит над левым контроллером — коснись шарика кончиком правого</li>
+      <li><b>Стик</b> ←→ цвет, ↑↓ толщина кисти</li>
+      <li><b>Боковая кнопка (grip)</b> — схватить и подвинуть/повернуть весь рисунок</li>
+      <li><b>X</b> — отменить, <b>Y</b> — вернуть</li>
+      <li><b>A</b> — зеркальное рисование вкл/выкл</li>
+      <li><b>B</b> держать 1,5 сек — стереть всё</li>
+    </ul>
+    Рисунок сохраняется сам. Мышью тут можно крутить и смотреть рисунок.
+  </details>
+  <div id="status"></div>
+</div>
+
+<script type="module">
+import * as THREE from 'three';
+import { XRControllerModelFactory } from 'three/addons/webxr/XRControllerModelFactory.js';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { GLTFExporter } from 'three/addons/exporters/GLTFExporter.js';
+
+// ---------- настройки ----------
+const COLORS = ['#ffffff','#222222','#ff3b30','#ff9500','#ffd60a','#34c759','#00c7be','#0a84ff','#5e5ce6','#bf5af2','#ff2d92','rainbow'];
+const COLOR_NAMES = ['белый','чёрный','красный','оранжевый','жёлтый','зелёный','бирюза','синий','индиго','фиолет','розовый','радуга'];
+const SIZES = [0.0015,0.003,0.005,0.008,0.012,0.018,0.028,0.04];
+let colorIdx = 7, sizeIdx = 2, mirror = false, isAR = false;
+const STORE = 'quest-sketch-v1';
+const statusEl = document.getElementById('status');
+
+// ---------- сцена ----------
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+renderer.xr.enabled = true;
+renderer.xr.setReferenceSpaceType('local-floor');
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(70, innerWidth / innerHeight, 0.01, 100);
+camera.position.set(0, 1.6, 1.4);
+const orbit = new OrbitControls(camera, renderer.domElement);
+orbit.target.set(0, 1.2, 0); orbit.update();
+
+scene.add(new THREE.HemisphereLight(0xffffff, 0x445066, 2.0));
+const sun = new THREE.DirectionalLight(0xffffff, 1.6); sun.position.set(1, 3, 2); scene.add(sun);
+
+const grid = new THREE.GridHelper(10, 20, 0x3a4060, 0x262a3a);
+scene.add(grid);
+
+const art = new THREE.Group(); scene.add(art);
+
+const mirrorPlane = new THREE.Mesh(
+  new THREE.PlaneGeometry(1.6, 2.2),
+  new THREE.MeshBasicMaterial({ color: 0x66ccff, transparent: true, opacity: 0.07, side: THREE.DoubleSide, depthWrite: false })
+);
+mirrorPlane.rotation.y = Math.PI / 2; mirrorPlane.position.set(0, 1.2, -0.6); mirrorPlane.visible = false;
+art.add(mirrorPlane);
+
+function applyMode() {
+  scene.background = isAR ? null : new THREE.Color(0x14161d);
+  grid.visible = !isAR;
+}
+applyMode();
+
+// ---------- трубка-мазок (растёт по точкам) ----------
+const R = 8, MAXP = 3000;
+const COS = [], SIN = [];
+for (let j = 0; j < R; j++) { const a = j / R * Math.PI * 2; COS.push(Math.cos(a)); SIN.push(Math.sin(a)); }
+const IDX = (() => {
+  const a = new Uint32Array((MAXP - 1) * R * 6); let o = 0;
+  for (let i = 1; i < MAXP; i++) for (let j = 0; j < R; j++) {
+    const a0 = (i - 1) * R + j, b0 = (i - 1) * R + (j + 1) % R, c0 = i * R + j, d0 = i * R + (j + 1) % R;
+    a[o++] = a0; a[o++] = c0; a[o++] = b0; a[o++] = b0; a[o++] = c0; a[o++] = d0;
+  }
+  return a;
+})();
+const MAT = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.42, metalness: 0.05, side: THREE.DoubleSide });
+const _b = new THREE.Vector3();
+
+function perp(t) {
+  const a = Math.abs(t.y) < 0.9 ? new THREE.Vector3(0, 1, 0) : new THREE.Vector3(1, 0, 0);
+  return a.addScaledVector(t, -a.dot(t)).normalize();
+}
+
+class Tube {
+  constructor() {
+    this.pos = new Float32Array(MAXP * R * 3);
+    this.nor = new Float32Array(MAXP * R * 3);
+    this.col = new Float32Array(MAXP * R * 3);
+    const g = this.g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.BufferAttribute(this.pos, 3).setUsage(THREE.DynamicDrawUsage));
+    g.setAttribute('normal', new THREE.BufferAttribute(this.nor, 3).setUsage(THREE.DynamicDrawUsage));
+    g.setAttribute('color', new THREE.BufferAttribute(this.col, 3).setUsage(THREE.DynamicDrawUsage));
+    g.setIndex(new THREE.BufferAttribute(IDX, 1));
+    g.setDrawRange(0, 0);
+    this.mesh = new THREE.Mesh(g, MAT); this.mesh.frustumCulled = false;
+    this.n = 0; this.P = []; this.C = [];
+    this.N = new THREE.Vector3(); this.T = new THREE.Vector3();
+  }
+  ring(i, p, t, n, r, c) {
+    if (t) _b.crossVectors(t, n);
+    for (let j = 0; j < R; j++) {
+      let nx = 0, ny = 1, nz = 0;
+      if (t) { nx = COS[j] * n.x + SIN[j] * _b.x; ny = COS[j] * n.y + SIN[j] * _b.y; nz = COS[j] * n.z + SIN[j] * _b.z; }
+      const k = (i * R + j) * 3;
+      this.pos[k] = p.x + r * nx; this.pos[k + 1] = p.y + r * ny; this.pos[k + 2] = p.z + r * nz;
+      this.nor[k] = nx; this.nor[k + 1] = ny; this.nor[k + 2] = nz;
+      this.col[k] = c.r; this.col[k + 1] = c.g; this.col[k + 2] = c.b;
+    }
+  }
+  add(p, r, c) {
+    const i = this.n;
+    if (i === 0) {
+      this.P.push(p.clone()); this.C.push(c.clone());
+      this.ring(0, p, null, null, 0, c); this.n = 1; return;
+    }
+    const t = new THREE.Vector3().subVectors(p, this.P[i - 1]).normalize();
+    if (i === 1) { this.N.copy(perp(t)); this.ring(0, this.P[0], t, this.N, 0, this.C[0]); }
+    else {
+      this.N.addScaledVector(t, -this.N.dot(t));
+      if (this.N.lengthSq() < 1e-8) this.N.copy(perp(t));
+      this.N.normalize();
+    }
+    this.T.copy(t);
+    this.P.push(p.clone()); this.C.push(c.clone());
+    this.ring(i, p, t, this.N, r * Math.min(1, i / 3), c);
+    this.n = i + 1;
+    this.g.setDrawRange(0, (this.n - 1) * R * 6);
+    for (const k of ['position', 'normal', 'color']) this.g.attributes[k].needsUpdate = true;
+  }
+  finish() {
+    if (this.n >= 2) { const i = this.n - 1; this.ring(i, this.P[i], this.T, this.N, 0, this.C[i]); }
+    const nv = this.n * R * 3;
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.BufferAttribute(this.pos.slice(0, nv), 3));
+    g.setAttribute('normal', new THREE.BufferAttribute(this.nor.slice(0, nv), 3));
+    g.setAttribute('color', new THREE.BufferAttribute(this.col.slice(0, nv), 3));
+    g.setIndex(new THREE.BufferAttribute(IDX.slice(0, Math.max(0, (this.n - 1) * R * 6)), 1));
+    g.computeBoundingSphere();
+    this.g.dispose(); this.g = g; this.mesh.geometry = g;
+    this.pos = this.nor = this.col = null; this.P = this.C = null;
+  }
+}
+
+function colorFor(key, idx) {
+  const c = new THREE.Color();
+  if (key === 'rainbow') c.setHSL((idx * 0.012) % 1, 0.9, 0.55); else c.set(key);
+  return c;
+}
+const r3 = v => Math.round(v * 10000) / 10000;
+const _m = new THREE.Vector3();
+
+class Stroke {
+  constructor(c, m) {
+    this.d = { c, m, p: [] };
+    this.tubes = [new Tube()]; if (m) this.tubes.push(new Tube());
+    this.show();
+    this.last = new THREE.Vector3();
+  }
+  get count() { return this.d.p.length / 4; }
+  add(p, r) {
+    const col = colorFor(this.d.c, this.count);
+    this.d.p.push(r3(p.x), r3(p.y), r3(p.z), r3(r));
+    this.tubes[0].add(p, r, col);
+    if (this.d.m) this.tubes[1].add(_m.set(-p.x, p.y, p.z), r, col);
+    this.last.copy(p);
+  }
+  finish() { this.tubes.forEach(t => t.finish()); }
+  show() { this.tubes.forEach(t => art.add(t.mesh)); }
+  hide() { this.tubes.forEach(t => art.remove(t.mesh)); }
+  static fromData(d) {
+    const s = new Stroke(d.c, d.m), v = new THREE.Vector3();
+    for (let i = 0; i < d.p.length; i += 4) s.add(v.set(d.p[i], d.p[i + 1], d.p[i + 2]), d.p[i + 3]);
+    s.finish(); return s;
+  }
+}
+
+// ---------- история ----------
+let strokes = [], redo = [], lastCleared = null;
+
+function save() {
+  try {
+    localStorage.setItem(STORE, JSON.stringify({
+      v: 1, strokes: strokes.map(s => s.d),
+      art: { p: art.position.toArray(), q: art.quaternion.toArray() }
+    }));
+  } catch (e) { console.warn(e); }
+  statusEl.textContent = `Мазков: ${strokes.length}`;
+}
+function load() {
+  try {
+    const raw = localStorage.getItem(STORE); if (!raw) return;
+    const j = JSON.parse(raw);
+    if (j.art) { art.position.fromArray(j.art.p); art.quaternion.fromArray(j.art.q); }
+    for (const d of j.strokes || []) strokes.push(Stroke.fromData(d));
+  } catch (e) { console.warn(e); }
+}
+function undo() {
+  if (strokes.length) { const s = strokes.pop(); s.hide(); redo.push(s); }
+  else if (lastCleared) { strokes = lastCleared; lastCleared = null; strokes.forEach(s => s.show()); }
+  save();
+}
+function redoFn() { if (redo.length) { const s = redo.pop(); s.show(); strokes.push(s); save(); } }
+function clearAll() {
+  if (!strokes.length) return;
+  strokes.forEach(s => s.hide()); lastCleared = strokes; strokes = []; redo = [];
+  save();
+}
+
+// ---------- контроллеры ----------
+const factory = new XRControllerModelFactory();
+const ctrls = [];
+const cursorGeo = new THREE.SphereGeometry(1, 16, 12);
+let paletteOwner = null, grabber = null;
+
+for (let i = 0; i < 2; i++) {
+  const c = renderer.xr.getController(i);
+  const tip = new THREE.Object3D(); tip.position.set(0, 0, -0.03); c.add(tip);
+  const cursor = new THREE.Mesh(cursorGeo, new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.85 }));
+  tip.add(cursor);
+  c.userData = { tip, cursor, prev: [], stroke: null };
+  c.addEventListener('connected', e => {
+    c.userData.gamepad = e.data.gamepad; c.userData.hand = e.data.handedness;
+    if (e.data.handedness === 'left') { paletteOwner = c; c.add(palette); }
+  });
+  c.addEventListener('disconnected', () => {
+    if (c.userData.stroke) endStroke(c);
+    c.userData.gamepad = null;
+    if (paletteOwner === c) { c.remove(palette); paletteOwner = null; }
+  });
+  scene.add(c); ctrls.push(c);
+  const grip = renderer.xr.getControllerGrip(i);
+  grip.add(factory.createControllerModel(grip)); scene.add(grip);
+}
+
+// ---------- палитра над левым контроллером ----------
+const palette = new THREE.Group();
+palette.position.set(0, 0.02, 0.0);
+const swatches = [];
+const rainbowTex = (() => {
+  const cv = document.createElement('canvas'); cv.width = 128; cv.height = 8;
+  const x = cv.getContext('2d'); const g = x.createLinearGradient(0, 0, 128, 0);
+  for (let i = 0; i <= 6; i++) g.addColorStop(i / 6, `hsl(${i * 60},90%,55%)`);
+  x.fillStyle = g; x.fillRect(0, 0, 128, 8);
+  const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; return t;
+})();
+const swGeo = new THREE.SphereGeometry(0.011, 16, 12);
+COLORS.forEach((key, k) => {
+  const ang = THREE.MathUtils.degToRad(-75 + 150 * k / (COLORS.length - 1));
+  const mat = key === 'rainbow' ? new THREE.MeshBasicMaterial({ map: rainbowTex }) : new THREE.MeshBasicMaterial({ color: key });
+  const m = new THREE.Mesh(swGeo, mat);
+  m.position.set(Math.sin(ang) * 0.085, 0.03 + Math.cos(ang) * 0.085, 0);
+  m.userData.idx = k; palette.add(m); swatches.push(m);
+});
+const hudCanvas = document.createElement('canvas'); hudCanvas.width = 512; hudCanvas.height = 160;
+const hudTex = new THREE.CanvasTexture(hudCanvas); hudTex.colorSpace = THREE.SRGBColorSpace;
+const hud = new THREE.Mesh(new THREE.PlaneGeometry(0.12, 0.0375), new THREE.MeshBasicMaterial({ map: hudTex, transparent: true }));
+hud.position.set(0, 0.145, 0); palette.add(hud);
+
+function drawHud() {
+  const x = hudCanvas.getContext('2d');
+  x.clearRect(0, 0, 512, 160);
+  x.fillStyle = 'rgba(15,17,25,.82)'; x.beginPath(); x.roundRect(0, 0, 512, 160, 34); x.fill();
+  x.fillStyle = '#fff'; x.font = 'bold 50px sans-serif'; x.textAlign = 'center';
+  x.fillText(`${COLOR_NAMES[colorIdx]} · ${(SIZES[sizeIdx] * 2000).toFixed(0)} мм`, 256, 68);
+  x.font = '38px sans-serif'; x.fillStyle = mirror ? '#7fd8ff' : '#8890a8';
+  x.fillText(mirror ? 'зеркало ВКЛ' : 'зеркало выкл', 256, 128);
+  hudTex.needsUpdate = true;
+  swatches.forEach(s => s.scale.setScalar(s.userData.idx === colorIdx ? 1.55 : 1));
+  for (const c of ctrls) {
+    const key = COLORS[colorIdx];
+    c.userData.cursor.material.color.set(key === 'rainbow' ? '#ffffff' : key);
+  }
+  mirrorPlane.visible = mirror;
+}
+function setColor(i) { colorIdx = (i + COLORS.length) % COLORS.length; drawHud(); }
+function setSize(i) { sizeIdx = THREE.MathUtils.clamp(i, 0, SIZES.length - 1); drawHud(); }
+function buzz(c, s = 0.4, ms = 30) { try { c.userData.gamepad?.hapticActuators?.[0]?.pulse(s, ms); } catch (e) {} }
+
+function endStroke(c) {
+  const s = c.userData.stroke; c.userData.stroke = null;
+  if (!s) return;
+  if (s.count < 2) { s.hide(); return; }
+  s.finish(); strokes.push(s); save();
+}
+
+// ---------- главный цикл ----------
+const wp = new THREE.Vector3(), lp = new THREE.Vector3(), sp = new THREE.Vector3();
+
+function update() {
+  const now = performance.now();
+  for (const c of ctrls) {
+    const gp = c.userData.gamepad; if (!gp) continue;
+    const b = gp.buttons, prev = c.userData.prev;
+    const pr = i => !!(b[i] && b[i].pressed);
+    const down = i => pr(i) && !prev[i];
+    const up = i => !pr(i) && prev[i];
+    const left = c.userData.hand === 'left';
+    c.userData.cursor.scale.setScalar(SIZES[sizeIdx]);
+    c.userData.tip.getWorldPosition(wp);
+
+    // выбор цвета касанием палитры
+    const tv = b[0] ? b[0].value : 0;
+    if (paletteOwner && c !== paletteOwner && !c.userData.stroke && tv < 0.08) {
+      for (const sw of swatches) {
+        sw.getWorldPosition(sp);
+        if (sp.distanceTo(wp) < 0.022 && sw.userData.idx !== colorIdx) { setColor(sw.userData.idx); buzz(c, 0.6, 40); }
+      }
+    }
+
+    // рисование
+    if (tv > 0.08) {
+      lp.copy(wp); art.worldToLocal(lp);
+      const r = SIZES[sizeIdx] * (0.35 + 0.65 * tv);
+      let s = c.userData.stroke;
+      if (!s) { s = c.userData.stroke = new Stroke(COLORS[colorIdx], mirror); s.add(lp, r); redo = []; }
+      else if (s.last.distanceTo(lp) > 0.003) {
+        if (s.count >= MAXP - 1) {
+          const last = s.last.clone(); endStroke(c);
+          s = c.userData.stroke = new Stroke(COLORS[colorIdx], mirror); s.add(last, r);
+        }
+        s.add(lp, r);
+      }
+    } else if (c.userData.stroke) endStroke(c);
+
+    // схватить рисунок
+    if (down(1) && !grabber) { grabber = c; c.attach(art); buzz(c, 0.3, 30); }
+    if (up(1) && grabber === c) { scene.attach(art); grabber = null; save(); }
+
+    // стик: цвет / толщина
+    const ax = gp.axes || [];
+    const sx = ax.length > 2 ? ax[2] : ax[0] || 0, sy = ax.length > 3 ? ax[3] : ax[1] || 0;
+    if (!c.userData.latch) {
+      if (sx > 0.7) { setColor(colorIdx + 1); c.userData.latch = true; buzz(c, 0.2, 15); }
+      else if (sx < -0.7) { setColor(colorIdx - 1); c.userData.latch = true; buzz(c, 0.2, 15); }
+      else if (sy < -0.7) { setSize(sizeIdx + 1); c.userData.latch = true; buzz(c, 0.2, 15); }
+      else if (sy > 0.7) { setSize(sizeIdx - 1); c.userData.latch = true; buzz(c, 0.2, 15); }
+    } else if (Math.abs(sx) < 0.3 && Math.abs(sy) < 0.3) c.userData.latch = false;
+
+    // кнопки
+    if (left) {
+      if (down(4)) { undo(); buzz(c, 0.4, 30); }
+      if (down(5)) { redoFn(); buzz(c, 0.4, 30); }
+    } else {
+      if (down(4)) { mirror = !mirror; drawHud(); buzz(c, 0.5, 40); }
+      if (pr(5)) {
+        if (!c.userData.holdStart) { c.userData.holdStart = now; c.userData.holdDone = false; buzz(c, 0.15, 20); }
+        if (!c.userData.holdDone && now - c.userData.holdStart > 1500) { clearAll(); c.userData.holdDone = true; buzz(c, 1, 150); }
+      } else c.userData.holdStart = 0;
+    }
+
+    c.userData.prev = b.map(x => x.pressed);
+  }
+}
+
+renderer.setAnimationLoop(() => { update(); renderer.render(scene, camera); });
+addEventListener('resize', () => {
+  camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+
+// ---------- кнопки страницы ----------
+const btnAR = document.getElementById('btnAR'), btnVR = document.getElementById('btnVR');
+async function start(mode) {
+  // пробуем от «богатого» варианта к самому простому
+  const tries = [
+    { space: 'local-floor', opts: { optionalFeatures: ['local-floor', 'hand-tracking'] } },
+    { space: 'local', opts: { optionalFeatures: ['hand-tracking'] } },
+    { space: 'local', opts: {} },
+  ];
+  let s = null, lastErr = null;
+  for (const t of tries) {
+    try { s = await navigator.xr.requestSession(mode, t.opts); break; }
+    catch (e) { lastErr = e; }
+  }
+  if (!s) { alert('Не удалось запустить: ' + (lastErr && lastErr.message)); return; }
+  try {
+    isAR = mode === 'immersive-ar'; applyMode();
+    // если «пол» не дали — работаем от уровня головы
+    let space = 'local-floor';
+    try { await s.requestReferenceSpace('local-floor'); } catch (e) { space = 'local'; }
+    renderer.xr.setReferenceSpaceType(space);
+    await renderer.xr.setSession(s);
+    s.addEventListener('end', () => { ctrls.forEach(endStroke); isAR = false; applyMode(); save(); });
+  } catch (e) { alert('Не удалось запустить: ' + e.message); }
+}
+btnAR.onclick = () => start('immersive-ar');
+btnVR.onclick = () => start('immersive-vr');
+
+if (navigator.xr) {
+  navigator.xr.isSessionSupported('immersive-ar').then(ok => { btnAR.disabled = !ok; if (!ok) btnAR.textContent = 'AR тут не поддерживается — открой в очках'; });
+  navigator.xr.isSessionSupported('immersive-vr').then(ok => { btnVR.disabled = !ok; });
+} else {
+  btnAR.textContent = 'Открой эту страницу в браузере Quest';
+}
+
+document.getElementById('btnClear').onclick = () => { if (confirm('Стереть весь рисунок?')) clearAll(); };
+document.getElementById('btnGLB').onclick = () => {
+  const vis = mirrorPlane.visible; mirrorPlane.visible = false;
+  new GLTFExporter().parse(art, res => {
+    mirrorPlane.visible = vis;
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([res], { type: 'model/gltf-binary' }));
+    a.download = 'risunok.glb'; a.click();
+  }, err => { mirrorPlane.visible = vis; alert('Ошибка экспорта: ' + err); }, { binary: true });
+};
+
+load(); drawHud(); save();
+</script>
+</body>
+</html>
